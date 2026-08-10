@@ -254,4 +254,9 @@ test("keeps ExoClick disabled until complete validated zone configuration is sup
   assert.match(productionCheck, /Advertising is enabled but configuration is incomplete/);
   assert.match(adCheck, /ADS_TXT is missing/);
   assert.match(adsTxtRoute, /status: 404/);
+  const watchPage = await source("app/watch/[slug]/page.tsx");
+  const chrome = await source("components/site-chrome.tsx");
+  assert.match(watchPage, /placement="below-player"/);
+  assert.match(watchPage, /placement="watch-outstream"/);
+  assert.ok(chrome.indexOf('placement="sidebar"') < chrome.indexOf("Popular actresses"));
 });

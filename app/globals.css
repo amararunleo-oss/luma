@@ -103,11 +103,12 @@ img { max-width: 100%; }
 .search-discovery-grid a:hover span { color:var(--accent); }
 .ad-slot { width:100%; margin:0 auto 30px; display:grid; place-items:center; overflow:hidden; color:var(--soft); text-align:center; }
 .ad-slot > span { margin-bottom:7px; font-size:8px; letter-spacing:.12em; text-transform:uppercase; }
-.ad-slot > ins { max-width:100%; display:block; }
+.ad-slot > ins { max-width:100%; display:block; margin-inline:auto; }
+.ad-slot > div, .ad-slot > div > div, .ad-slot iframe { max-width:100%; margin-inline:auto !important; }
 .ad-slot-leaderboard { min-height:106px; }
 .ad-slot-rectangle { min-height:278px; margin-bottom:30px; }
 .ad-slot-outstream { min-height:0; }
-.sidebar > .ad-slot { border-bottom:0; }
+.sidebar > .ad-slot { margin:-8px 0 30px; border-bottom:1px solid var(--line); }
 .filter-shell { position:relative; margin:0 0 24px; }
 .mobile-filter-trigger, .mobile-filter-backdrop, .filter-mobile-heading { display:none; }
 .catalog-filters { margin:0; padding:14px; display:grid; grid-template-columns:auto repeat(5,minmax(105px,1fr)) auto auto; align-items:end; gap:10px; border:1px solid var(--line); background:#fff; }
@@ -246,6 +247,10 @@ img { max-width: 100%; }
 .detail-performers { margin-top: 0; min-height: 0; font-size: 11px; }
 .watch-stage { width:min(100%,640px); margin-inline:auto; display:flex; justify-content:center; }
 .watch-media { width:min(100%,640px); min-width:0; }
+.watch-banner { width:min(100%,728px); margin:28px auto 0; }
+.watch-banner .ad-slot { margin-bottom:0; }
+.watch-outstream-break { width:min(100%,640px); margin:26px auto 0; }
+.watch-outstream-break .ad-slot { margin-bottom:0; }
 .player-frame { aspect-ratio:16 / 9; width:100%; max-width:640px; margin:0; position:relative; overflow:hidden; border:1px solid rgba(255,255,255,.09); border-radius:0; background:#100d10; box-shadow:0 18px 46px rgba(31,18,24,.14),0 2px 8px rgba(31,18,24,.08); isolation:isolate; }
 .player-poster > img { width:100%; height:100%; display:block; object-fit:cover; filter:brightness(.7) saturate(.86); transform:scale(1.002); }
 .player-poster::after { content:""; position:absolute; inset:0; background:linear-gradient(180deg,rgba(10,5,8,.08) 30%,rgba(10,5,8,.68) 100%),linear-gradient(100deg,rgba(10,5,8,.16),transparent 60%); }

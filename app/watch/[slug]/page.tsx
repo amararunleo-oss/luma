@@ -112,9 +112,9 @@ export default async function WatchPage({ params }: { params: Promise<{ slug: st
                 <h2 id="scene-description-title">About this scene</h2>
                 <p>{enrichedDescription}</p>
               </section>
-              <AdSlot placement="watch-outstream" />
             </div>
           </div>
+          <div className="watch-banner"><AdSlot placement="below-player" /></div>
           <div className="detail-data" aria-label="Scene information">
             <dl>
               <div><dt>Title</dt><dd><Link href={workPath}>{video.workTitle}</Link></dd></div>
@@ -125,6 +125,7 @@ export default async function WatchPage({ params }: { params: Promise<{ slug: st
             <div className="detail-tags"><h2>Tags</h2><ul>{video.tags.map((tag) => <li key={tag}><Link href={`/tag/${slugify(tag)}`}>{tag}</Link></li>)}</ul></div>
           </div>
           <ReportIssue videoSlug={video.slug} title={video.sceneTitle} />
+          <div className="watch-outstream-break"><AdSlot placement="watch-outstream" /></div>
           {related.length > 0 && (
             <section className="related">
               <div className="subheading"><h2>Related videos</h2></div>

@@ -37,6 +37,7 @@ export async function Sidebar() {
           <li><Link href="/top-rated"><Star size={15} aria-hidden="true" /><span>Top Rated</span></Link></li>
         </ul>
       </section>
+      <AdSlot placement="sidebar" />
       <section>
         <div className="sidebar-heading"><h2>Popular actresses</h2><Link href="/actress">View all</Link></div>
         <ul className="text-list">
@@ -57,7 +58,6 @@ export async function Sidebar() {
           {years.map((item) => <Link href={`/year/${item.year}`} key={item.year}>{item.year}</Link>)}
         </div>
       </section>
-      <AdSlot placement="sidebar" />
     </aside>
   );
 }
