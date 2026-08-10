@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "licensed-demo-001",
+      "url": "https://media.your-domain.example/videos/demo-001.mp4",
+      "filename": "videos/demo-001.mp4",
+      "mediaType": "video",
+      "license": {
+        "approved": true,
+        "type": "Owned or licensed",
+        "rightsholder": "Replace with the verified rightsholder",
+        "proof": "Replace with a contract, invoice, or public license URL"
+      }
+    }
+  ]
+}
