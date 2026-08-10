@@ -60,7 +60,10 @@ export async function generateMetadata(): Promise<Metadata> {
       images: [{ url: absoluteUrl(origin, "/og.png"), width: 1200, height: 630, alt: `${SITE.name} celebrity movie and television scenes` }],
     },
     twitter: { card: "summary_large_image", title: SITE.title, description: SITE.description, images: [absoluteUrl(origin, "/og.png")] },
-    other: { rating: "adult" },
+    other: {
+      rating: "adult",
+      "6a97888e-site-verification": "2918b7b8c44da80738c0bfea7193b520",
+    },
   };
 }
 
