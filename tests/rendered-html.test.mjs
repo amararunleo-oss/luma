@@ -244,8 +244,11 @@ test("keeps ExoClick disabled until complete validated configuration is supplied
   assert.match(adSlot, /a\.magsrv\.com\/ad-provider\.js/);
   assert.match(adSlot, /IntersectionObserver/);
   assert.match(adSlot, /validZone/);
+  assert.match(adSlot, /NEXT_PUBLIC_EXOCLICK_CATALOG_MOBILE_ZONE_ID/);
+  assert.match(adSlot, /matchMedia\("\(max-width: 820px\)"\)/);
   assert.doesNotMatch(adSlot, /data-ex_av/);
-  assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_BLOCK_AD_TYPES=101/);
+  assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_BLOCK_AD_TYPES=/);
+  assert.doesNotMatch(adSlot, /\|\| "101"/);
   assert.match(productionCheck, /Advertising is enabled but configuration is incomplete/);
   assert.match(adCheck, /ADS_TXT is missing/);
 });

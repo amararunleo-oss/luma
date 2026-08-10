@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 type Placement = "catalog-top" | "sidebar" | "below-player";
+type ZoneConfig = { zoneId?: string; className?: string; format: string };
 
 declare global {
   interface Window {
@@ -10,7 +11,7 @@ declare global {
   }
 }
 
-const placements: Record<Placement, { zoneId?: string; className?: string; format: string }> = {
+const desktopPlacements: Record<Placement, ZoneConfig> = {
   "catalog-top": {
     zoneId: process.env.NEXT_PUBLIC_EXOCLICK_CATALOG_ZONE_ID,
     className: process.env.NEXT_PUBLIC_EXOCLICK_CATALOG_CLASS,
@@ -28,8 +29,21 @@ const placements: Record<Placement, { zoneId?: string; className?: string; forma
   },
 };
 
+const mobilePlacements: Partial<Record<Placement, ZoneConfig>> = {
+  "catalog-top": {
+    zoneId: process.env.NEXT_PUBLIC_EXOCLICK_CATALOG_MOBILE_ZONE_ID,
+    className: process.env.NEXT_PUBLIC_EXOCLICK_CATALOG_MOBILE_CLASS,
+    format: "leaderboard",
+  },
+  "below-player": {
+    zoneId: process.env.NEXT_PUBLIC_EXOCLICK_PLAYER_MOBILE_ZONE_ID,
+    className: process.env.NEXT_PUBLIC_EXOCLICK_PLAYER_MOBILE_CLASS,
+    format: "leaderboard",
+  },
+};
+
 const adsEnabled = process.env.NEXT_PUBLIC_ADS_ENABLED === "true";
-const blockedAdTypes = process.env.NEXT_PUBLIC_EXOCLICK_BLOCK_AD_TYPES?.trim() || "101";
+const blockedAdTypes = process.env.NEXT_PUBLIC_EXOCLICK_BLOCK_AD_TYPES?.trim();
 
 function validZone(config: { zoneId?: string; className?: string }) {
   return Boolean(config.zoneId && /^\d+$/.test(config.zoneId) && config.className && /^[a-z][a-z0-9_-]+$/i.test(config.className));
@@ -66,10 +80,20 @@ function loadProvider(onReady: () => void, onError: () => void) {
 }
 
 export function AdSlot({ placement }: { placement: Placement }) {
-  const { zoneId, className, format } = placements[placement];
   const containerRef = useRef<HTMLDivElement>(null);
+  const [isMobile, setIsMobile] = useState(false);
   const [visible, setVisible] = useState(false);
   const [failed, setFailed] = useState(false);
+  const config = (isMobile && mobilePlacements[placement]) || desktopPlacements[placement];
+  const { zoneId, className, format } = config;
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 820px)");
+    const updateDevice = () => setIsMobile(media.matches);
+    updateDevice();
+    media.addEventListener("change", updateDevice);
+    return () => media.removeEventListener("change", updateDevice);
+  }, []);
 
   useEffect(() => {
     const element = containerRef.current;
@@ -91,10 +115,11 @@ export function AdSlot({ placement }: { placement: Placement }) {
   if (!adsEnabled || !validZone({ zoneId, className }) || failed) return null;
 
   return (
-    <div className={`ad-slot ad-slot-${format}`} data-placement={placement} ref={containerRef}>
+    <div className={`ad-slot ad-slot-${format}`} data-device={isMobile ? "mobile" : "desktop"} data-placement={placement} ref={containerRef}>
       <span>Advertisement</span>
       {visible && (
         <ins
+          key={zoneId}
           className={className}
           data-zoneid={zoneId}
           data-block-ad-types={blockedAdTypes || undefined}

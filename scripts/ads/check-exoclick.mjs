@@ -7,7 +7,7 @@ if (existsSync(".env.local")) process.loadEnvFile(".env.local");
 
 const strict = process.argv.includes("--strict");
 const enabled = process.env.NEXT_PUBLIC_ADS_ENABLED === "true";
-const placements = ["CATALOG", "SIDEBAR", "PLAYER"];
+const placements = ["CATALOG", "CATALOG_MOBILE", "SIDEBAR", "PLAYER", "PLAYER_MOBILE"];
 const issues = [];
 
 for (const placement of placements) {
@@ -24,7 +24,7 @@ if (!process.env.SITE_DMCA_EMAIL?.trim()) issues.push("SITE_DMCA_EMAIL is missin
 console.log(`Ads enabled: ${enabled ? "yes" : "no"}`);
 console.log(`Provider: ExoClick async ad-provider.js`);
 console.log(`Lazy loading: enabled`);
-console.log(`Restricted ad types: ${process.env.NEXT_PUBLIC_EXOCLICK_BLOCK_AD_TYPES?.trim() || "101 (default)"}`);
+console.log(`Restricted ad types: ${process.env.NEXT_PUBLIC_EXOCLICK_BLOCK_AD_TYPES?.trim() || "none beyond zone-level filters"}`);
 
 if (issues.length) {
   console.log("Setup remaining:");
