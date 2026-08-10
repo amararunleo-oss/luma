@@ -46,7 +46,6 @@ if (process.env.NEXT_PUBLIC_ADS_ENABLED === "true") {
     "NEXT_PUBLIC_EXOCLICK_PLAYER_MOBILE_CLASS",
     "NEXT_PUBLIC_EXOCLICK_OUTSTREAM_ZONE_ID",
     "NEXT_PUBLIC_EXOCLICK_OUTSTREAM_CLASS",
-    "ADS_TXT",
   ];
   const missingAds = adVariables.filter((key) => !process.env[key]?.trim());
   if (missingAds.length) {
@@ -58,6 +57,10 @@ if (process.env.NEXT_PUBLIC_ADS_ENABLED === "true") {
   if (zoneVariables.some((key) => !/^\d+$/.test(process.env[key])) || classVariables.some((key) => !/^[a-z][a-z0-9_-]+$/i.test(process.env[key]))) {
     console.error("ExoClick zone IDs or async classes are invalid. Copy them exactly from the generated zone snippets.");
     process.exit(1);
+  }
+
+  if (!process.env.ADS_TXT?.trim()) {
+    console.warn("ADS_TXT is not configured; /ads.txt will return 404 until authorized seller records are supplied.");
   }
 }
 

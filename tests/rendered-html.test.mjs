@@ -232,12 +232,13 @@ test("adds deterministic entity context and structured data without AI calls", a
   assert.doesNotMatch(context, /openai|anthropic|generateText|chat\.completions/i);
 });
 
-test("keeps ExoClick disabled until complete validated configuration is supplied", async () => {
-  const [adSlot, envExample, productionCheck, adCheck] = await Promise.all([
+test("keeps ExoClick disabled until complete validated zone configuration is supplied", async () => {
+  const [adSlot, envExample, productionCheck, adCheck, adsTxtRoute] = await Promise.all([
     source("components/ads/ad-slot.tsx"),
     source(".env.example"),
     source("scripts/check-production-env.mjs"),
     source("scripts/ads/check-exoclick.mjs"),
+    source("app/ads.txt/route.ts"),
   ]);
 
   assert.match(adSlot, /NEXT_PUBLIC_ADS_ENABLED === "true"/);
@@ -252,4 +253,5 @@ test("keeps ExoClick disabled until complete validated configuration is supplied
   assert.doesNotMatch(adSlot, /\|\| "101"/);
   assert.match(productionCheck, /Advertising is enabled but configuration is incomplete/);
   assert.match(adCheck, /ADS_TXT is missing/);
+  assert.match(adsTxtRoute, /status: 404/);
 });

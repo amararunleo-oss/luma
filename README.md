@@ -106,8 +106,10 @@ Ads default to disabled and the provider script is not requested until a valid
 zone approaches the viewport. Create three asynchronous banner zones in the
 ExoClick publisher dashboard, then copy each generated zone ID and class into the
 matching `NEXT_PUBLIC_EXOCLICK_*` variables. Add the dashboard-provided authorized
-seller records to `ADS_TXT`, set the operator contact variables, and finally set
-`NEXT_PUBLIC_ADS_ENABLED=true`.
+seller records to `ADS_TXT` when ExoClick supplies them, set the operator contact
+variables, and finally set `NEXT_PUBLIC_ADS_ENABLED=true`. A missing `ADS_TXT`
+value does not block deployment; `/ads.txt` returns 404 until an exact authorized
+seller record is configured.
 
 Check readiness without printing zone values:
 
