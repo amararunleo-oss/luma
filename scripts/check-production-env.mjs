@@ -44,6 +44,8 @@ if (process.env.NEXT_PUBLIC_ADS_ENABLED === "true") {
     "NEXT_PUBLIC_EXOCLICK_PLAYER_CLASS",
     "NEXT_PUBLIC_EXOCLICK_PLAYER_MOBILE_ZONE_ID",
     "NEXT_PUBLIC_EXOCLICK_PLAYER_MOBILE_CLASS",
+    "NEXT_PUBLIC_EXOCLICK_OUTSTREAM_ZONE_ID",
+    "NEXT_PUBLIC_EXOCLICK_OUTSTREAM_CLASS",
     "ADS_TXT",
   ];
   const missingAds = adVariables.filter((key) => !process.env[key]?.trim());

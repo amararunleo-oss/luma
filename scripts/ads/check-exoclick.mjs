@@ -7,7 +7,7 @@ if (existsSync(".env.local")) process.loadEnvFile(".env.local");
 
 const strict = process.argv.includes("--strict");
 const enabled = process.env.NEXT_PUBLIC_ADS_ENABLED === "true";
-const placements = ["CATALOG", "CATALOG_MOBILE", "SIDEBAR", "PLAYER", "PLAYER_MOBILE"];
+const placements = ["CATALOG", "CATALOG_MOBILE", "SIDEBAR", "PLAYER", "PLAYER_MOBILE", "OUTSTREAM"];
 const issues = [];
 
 for (const placement of placements) {

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-type Placement = "catalog-top" | "sidebar" | "below-player";
+type Placement = "catalog-top" | "sidebar" | "below-player" | "watch-outstream";
 type ZoneConfig = { zoneId?: string; className?: string; format: string };
 
 declare global {
@@ -26,6 +26,11 @@ const desktopPlacements: Record<Placement, ZoneConfig> = {
     zoneId: process.env.NEXT_PUBLIC_EXOCLICK_PLAYER_ZONE_ID,
     className: process.env.NEXT_PUBLIC_EXOCLICK_PLAYER_CLASS,
     format: "leaderboard",
+  },
+  "watch-outstream": {
+    zoneId: process.env.NEXT_PUBLIC_EXOCLICK_OUTSTREAM_ZONE_ID,
+    className: process.env.NEXT_PUBLIC_EXOCLICK_OUTSTREAM_CLASS,
+    format: "outstream",
   },
 };
 

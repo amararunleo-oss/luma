@@ -112,7 +112,7 @@ export default async function WatchPage({ params }: { params: Promise<{ slug: st
                 <h2 id="scene-description-title">About this scene</h2>
                 <p>{enrichedDescription}</p>
               </section>
-              <AdSlot placement="below-player" />
+              <AdSlot placement="watch-outstream" />
             </div>
           </div>
           <div className="detail-data" aria-label="Scene information">
