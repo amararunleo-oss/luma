@@ -3,13 +3,14 @@ import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { listDirectory } from "@/lib/catalog/repository";
 import { pageNumber } from "@/lib/videos";
 import { catalogMetadata } from "@/lib/seo";
+import { directorySeo } from "@/lib/seo-templates";
 
 export async function generateMetadata({ searchParams }: { searchParams: Promise<{ letter?: string; q?: string; page?: string }> }) {
   const query = await searchParams;
   const letter = /^[A-Z]$/i.test(query.letter ?? "") ? query.letter?.toUpperCase() : undefined;
+  const seo = directorySeo("movie", letter);
   return catalogMetadata({
-    title: letter ? `Movies beginning with ${letter} | Luma` : "Movies A-Z | Luma",
-    description: letter ? `Explore movies beginning with ${letter}.` : "Explore movies from A to Z.",
+    ...seo,
     path: letter ? `/movie?letter=${letter}` : "/movie",
     page: query.page,
     index: !query.q?.trim(),

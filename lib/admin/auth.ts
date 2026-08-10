@@ -10,7 +10,7 @@ export async function getAdminAccess(returnTo = "/admin"): Promise<AdminAccess> 
     return { status: "allowed", user: { userId: "local-admin", email: "local@localhost", displayName: "Local administrator", fullName: "Local administrator", local: true } };
   }
 
-  if (requestHeaders.get("x-luma-admin-authorized") !== "1") return { status: "anonymous", signInPath: returnTo };
-  const username = requestHeaders.get("x-luma-admin-username") ?? "admin";
+  if (requestHeaders.get("x-actrexx-admin-authorized") !== "1") return { status: "anonymous", signInPath: returnTo };
+  const username = requestHeaders.get("x-actrexx-admin-username") ?? "admin";
   return { status: "allowed", user: { userId: username, email: username, displayName: username, fullName: null, local: false } };
 }

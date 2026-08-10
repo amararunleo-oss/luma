@@ -1,5 +1,5 @@
 {
-  "name": "luma",
+  "name": "actrexx",
   "version": "0.1.0",
   "private": true,
   "engines": {
@@ -30,7 +30,10 @@
     "r2:thumbnails:upload": "node scripts/catalog/upload-previews-r2.mjs --execute",
     "r2:thumbnails:verify": "node scripts/catalog/upload-previews-r2.mjs --verify",
     "catalog:db:build": "node scripts/catalog/build-staging-sql.mjs",
-    "catalog:sync:local": "npm run catalog:db:build && wrangler d1 execute site-creator-d1 --local --persist-to .wrangler/state --file data/staging/videocelebs/local-sync.sql"
+    "catalog:sync:local": "npm run catalog:db:build && wrangler d1 execute site-creator-d1 --local --persist-to .wrangler/state --file data/staging/videocelebs/local-sync.sql",
+    "seo:indexnow": "node scripts/search/submit-indexnow.mjs",
+    "seo:audit": "node scripts/search/audit-catalog-seo.mjs",
+    "ads:check": "node scripts/ads/check-exoclick.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1106.0",

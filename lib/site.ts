@@ -1,9 +1,9 @@
 export const SITE = {
-  name: "Luma",
-  displayName: "LUMA",
-  title: "Luma | Celebrity Nude Scenes from Movies & TV",
-  description: "Discover celebrity nude scenes and intimate moments from movies and television, organized by actress, film, TV show, year and tag.",
-  shortDescription: "Celebrity scenes from movies and television for adults 18 and older.",
+  name: "Actrexx",
+  displayName: "ACTREXX",
+  title: "Actrexx | Celebrity Nude & Sex Scenes from Movies and TV",
+  description: "Watch celebrity nude scenes, sex scenes and intimate moments from movies and television, organized by actress, title, year and tag.",
+  shortDescription: "Celebrity nude and sex scenes from movies and television for adults 18 and older.",
   keywords: [
     "celebrity nude scenes",
     "actress nude scenes",
@@ -15,6 +15,9 @@ export const SITE = {
     "television nude scenes",
     "celebrity scene videos",
     "popular actress scenes",
+    "celebrity adult videos",
+    "actress sex videos",
+    "hot celebrity scenes",
   ],
 } as const;
 

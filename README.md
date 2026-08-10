@@ -1,6 +1,6 @@
-# Luma
+# Actrexx
 
-Luma is a production Next.js catalog deployed on Vercel. Catalog metadata stays
+Actrexx is a production Next.js catalog deployed on Vercel. Catalog metadata stays
 in Cloudflare D1 and canonical preview images stay in Cloudflare R2; video files
 are not stored by this application.
 
@@ -82,6 +82,43 @@ npm run r2:thumbnails:verify
 ```
 
 Uploads are resumable, preserve catalog keys, and do not delete remote objects.
+
+## Search discovery
+
+The site publishes a cached `/sitemap.xml` index with bounded child sitemaps for
+videos, actresses, screen titles and taxonomy pages. Entity and watch pages build
+factual descriptions, internal links and structured data from existing D1 rows;
+they do not call a generative AI service.
+
+Audit the production catalog data before a release:
+
+```bash
+npm run seo:audit
+```
+
+Use `npm run seo:indexnow -- --url /changed-path` only for new, updated or deleted
+URLs after `INDEXNOW_KEY` is configured. Initial catalog discovery belongs in the
+sitemaps, not a bulk IndexNow submission.
+
+## ExoClick advertising
+
+Ads default to disabled and the provider script is not requested until a valid
+zone approaches the viewport. Create three asynchronous banner zones in the
+ExoClick publisher dashboard, then copy each generated zone ID and class into the
+matching `NEXT_PUBLIC_EXOCLICK_*` variables. Add the dashboard-provided authorized
+seller records to `ADS_TXT`, set the operator contact variables, and finally set
+`NEXT_PUBLIC_ADS_ENABLED=true`.
+
+Check readiness without printing zone values:
+
+```bash
+npm run ads:check
+npm run ads:check -- --strict
+```
+
+Do not invent `ads.txt`, zone or age-verification values. If consent is required
+for a visitor's jurisdiction, connect a suitable consent-management platform
+before enabling personalized advertising.
 
 ## Validation
 

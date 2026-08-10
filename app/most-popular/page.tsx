@@ -4,11 +4,12 @@ import { listVideos } from "@/lib/catalog/repository";
 import { pageNumber } from "@/lib/videos";
 import { catalogMetadata } from "@/lib/seo";
 import { catalogFilterPath, filterQueryOptions, hasCatalogFilters, parseCatalogFilters, type CatalogFilterParams } from "@/lib/catalog/filters";
+import { listingSeo } from "@/lib/seo-templates";
 
 export async function generateMetadata({ searchParams }: { searchParams: Promise<CatalogFilterParams> }) {
   const query = await searchParams;
   const filters = parseCatalogFilters(query);
-  return catalogMetadata({ title: "Most Popular Celebrity Nude Scenes | Luma", description: "Explore the most watched celebrity scenes from movies and television.", path: "/most-popular", page: query.page, index: !hasCatalogFilters(filters) });
+  return catalogMetadata({ ...listingSeo("popular"), path: "/most-popular", page: query.page, index: !hasCatalogFilters(filters) });
 }
 
 export default async function Popular({ searchParams }: { searchParams: Promise<CatalogFilterParams> }) {

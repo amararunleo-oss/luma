@@ -155,3 +155,97 @@ test("contains drawer scrolling and keeps compact card metadata rhythm", async (
   assert.match(css, /touch-action:pan-y/);
   assert.doesNotMatch(css, /\.video-card h2 \{[^}]*min-height/);
 });
+
+test("publishes a cached sitemap index with bounded catalog chunks", async () => {
+  const [indexRoute, childRoute, sitemapHelpers, robots] = await Promise.all([
+    source("app/sitemap.xml/route.ts"),
+    source("app/sitemaps/[id]/route.ts"),
+    source("lib/sitemaps.ts"),
+    source("app/robots.ts"),
+  ]);
+
+  assert.match(indexRoute, /<sitemapindex/);
+  assert.match(childRoute, /parseSitemapId/);
+  assert.match(sitemapHelpers, /SITEMAP_CHUNK_SIZE = 10_000/);
+  assert.match(sitemapHelpers, /videos/);
+  assert.match(sitemapHelpers, /actresses/);
+  assert.match(sitemapHelpers, /works/);
+  assert.match(robots, /sitemap\.xml/);
+  assert.match(robots, /disallow: \["\/api\/", "\/admin\/", "\/search"\]/);
+});
+
+test("generates page-specific SEO without indexing internal search results", async () => {
+  const [templates, searchPage, watchPage, layout] = await Promise.all([
+    source("lib/seo-templates.ts"),
+    source("app/search/page.tsx"),
+    source("app/watch/[slug]/page.tsx"),
+    source("app/layout.tsx"),
+  ]);
+
+  assert.match(templates, /export function actressSeo/);
+  assert.match(templates, /export function watchSeo/);
+  assert.match(templates, /Sex Scene/);
+  assert.match(templates, /Nude Scene/);
+  assert.match(searchPage, /index: false/);
+  assert.match(watchPage, /watchSeo\(video\)/);
+  assert.match(layout, /GOOGLE_SITE_VERIFICATION/);
+  assert.match(layout, /BING_SITE_VERIFICATION/);
+});
+
+test("keeps IndexNow scoped to changed canonical URLs", async () => {
+  const [route, submitter, packageJson] = await Promise.all([
+    source("app/indexnow-key.txt/route.ts"),
+    source("scripts/search/submit-indexnow.mjs"),
+    source("package.json"),
+  ]);
+
+  assert.match(route, /INDEXNOW_KEY/);
+  assert.match(submitter, /--url/);
+  assert.match(submitter, /--file/);
+  assert.match(submitter, /api\.indexnow\.org\/indexnow/);
+  assert.match(submitter, /slice\(offset, offset \+ 10_000\)/);
+  assert.match(packageJson, /"seo:indexnow"/);
+});
+
+test("adds deterministic entity context and structured data without AI calls", async () => {
+  const [context, component, schema, actressPage, moviePage, watchPage, packageJson] = await Promise.all([
+    source("lib/entity-context.ts"),
+    source("components/entity-context.tsx"),
+    source("lib/structured-data.ts"),
+    source("app/actress/[slug]/page.tsx"),
+    source("app/movie/title/[slug]/page.tsx"),
+    source("app/watch/[slug]/page.tsx"),
+    source("package.json"),
+  ]);
+
+  assert.match(context, /export function actressContext/);
+  assert.match(context, /export function workContext/);
+  assert.match(context, /export function watchDescription/);
+  assert.match(component, /entity-context-groups/);
+  assert.match(schema, /"CollectionPage"/);
+  assert.match(schema, /"ItemList"/);
+  assert.match(schema, /"Person"/);
+  assert.match(actressPage, /beforeGrid={<EntityContext/);
+  assert.match(moviePage, /collectionSchema/);
+  assert.match(watchPage, /isPartOf/);
+  assert.match(packageJson, /"seo:audit"/);
+  assert.doesNotMatch(context, /openai|anthropic|generateText|chat\.completions/i);
+});
+
+test("keeps ExoClick disabled until complete validated configuration is supplied", async () => {
+  const [adSlot, envExample, productionCheck, adCheck] = await Promise.all([
+    source("components/ads/ad-slot.tsx"),
+    source(".env.example"),
+    source("scripts/check-production-env.mjs"),
+    source("scripts/ads/check-exoclick.mjs"),
+  ]);
+
+  assert.match(adSlot, /NEXT_PUBLIC_ADS_ENABLED === "true"/);
+  assert.match(adSlot, /a\.magsrv\.com\/ad-provider\.js/);
+  assert.match(adSlot, /IntersectionObserver/);
+  assert.match(adSlot, /validZone/);
+  assert.doesNotMatch(adSlot, /data-ex_av/);
+  assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_BLOCK_AD_TYPES=101/);
+  assert.match(productionCheck, /Advertising is enabled but configuration is incomplete/);
+  assert.match(adCheck, /ADS_TXT is missing/);
+});

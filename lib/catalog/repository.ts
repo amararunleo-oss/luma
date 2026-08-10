@@ -91,6 +91,9 @@ export type CatalogSitemap = {
   tags: { slug: string }[];
   years: number[];
 };
+export type CatalogSitemapSection = "videos" | "actresses" | "works" | "taxonomy";
+export type CatalogSitemapEntry = { path: string; updatedAt?: string };
+export type CatalogSitemapCounts = { videos: number; actresses: number; works: number; taxonomy: number };
 
 function database() {
   return getD1Database();
@@ -113,9 +116,15 @@ function searchTerm(value?: string) {
   return value?.trim().replace(/\s+/g, " ").slice(0, 80).toLowerCase() ?? "";
 }
 
-const SEARCH_ALIASES: Record<string, string[]> = {
+const SEARCH_INTENTS: Record<string, string[]> = {
+  porn: ["nude", "sex", "explicit"],
+  porno: ["nude", "sex", "explicit"],
+  "18+": ["explicit", "nude", "sex"],
+  adult: ["explicit", "nude", "sex"],
   naked: ["nude"],
+  nude: ["nude"],
   nudity: ["nude"],
+  sex: ["sex"],
   boobs: ["topless", "cleavage"],
   tits: ["topless", "cleavage"],
   breasts: ["topless", "cleavage"],
@@ -125,6 +134,7 @@ const SEARCH_ALIASES: Record<string, string[]> = {
   booty: ["butt"],
   doggystyle: ["sex", "explicit"],
   "doggy style": ["sex", "explicit"],
+  anal: ["sex", "explicit"],
   blowjob: ["sex", "explicit"],
   oral: ["sex", "explicit"],
   babe: ["sexy"],
@@ -133,10 +143,54 @@ const SEARCH_ALIASES: Record<string, string[]> = {
   "see-through": ["see thru"],
   strip: ["striptease"],
 };
+const SEARCH_NOISE = new Set(["video", "videos", "clip", "clips", "scene", "scenes", "actress", "actresses", "celebrity", "celebrities", "watch"]);
+const VIDEO_SEARCH_PREDICATE = "(lower(v.original_title) LIKE ? OR lower(v.display_title) LIKE ? OR lower(v.description) LIKE ? OR lower(w.title) LIKE ? OR EXISTS (SELECT 1 FROM video_actresses vas JOIN actresses aas ON aas.id = vas.actress_id WHERE vas.video_id = v.id AND lower(aas.name) LIKE ?) OR EXISTS (SELECT 1 FROM video_tags vts JOIN tags ts ON ts.id = vts.tag_id WHERE vts.video_id = v.id AND lower(ts.name) = ?))";
 
-function expandedSearchTerms(value?: string) {
+function phrasePattern(value: string) {
+  const escaped = value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
+  return new RegExp(`(^|\\s)${escaped}(?=\\s|$)`, "gi");
+}
+
+function buildSearchPlan(value?: string) {
   const primary = searchTerm(value);
-  return [...new Set([primary, ...(SEARCH_ALIASES[primary] ?? [])])].filter((term) => term.length >= 2).slice(0, 4);
+  let identity = primary;
+  const intents: string[] = [];
+  for (const phrase of Object.keys(SEARCH_INTENTS).sort((a, b) => b.length - a.length)) {
+    const pattern = phrasePattern(phrase);
+    if (!pattern.test(primary)) continue;
+    intents.push(...SEARCH_INTENTS[phrase]);
+    identity = identity.replace(phrasePattern(phrase), " ");
+  }
+  identity = identity.split(/\s+/).filter((token) => token && !SEARCH_NOISE.has(token)).join(" ").trim();
+  return { primary, identity, intents: [...new Set(intents)].slice(0, 4) };
+}
+
+function predicateValues(term: string) {
+  return [...Array(5).fill(`%${term}%`), term];
+}
+
+function databaseSearchClause(value?: string) {
+  const plan = buildSearchPlan(value);
+  const clauses = [VIDEO_SEARCH_PREDICATE];
+  const values: unknown[] = predicateValues(plan.primary);
+  if (plan.identity && plan.intents.length) {
+    clauses.push(`(${VIDEO_SEARCH_PREDICATE} AND (${plan.intents.map(() => VIDEO_SEARCH_PREDICATE).join(" OR ")}))`);
+    values.push(...predicateValues(plan.identity), ...plan.intents.flatMap(predicateValues));
+  } else if (plan.intents.length) {
+    clauses.push(`(${plan.intents.map(() => VIDEO_SEARCH_PREDICATE).join(" OR ")})`);
+    values.push(...plan.intents.flatMap(predicateValues));
+  } else if (plan.identity && plan.identity !== plan.primary) {
+    clauses.push(VIDEO_SEARCH_PREDICATE);
+    values.push(...predicateValues(plan.identity));
+  }
+  return { plan, sql: `(${clauses.join(" OR ")})`, values };
+}
+
+function videoMatchesSearch(video: Video, value?: string) {
+  const plan = buildSearchPlan(value);
+  const values = [video.title, video.sceneTitle, video.workTitle, video.description, ...video.actresses, ...video.tags].map((item) => item.toLowerCase());
+  const matches = (term: string) => values.some((item) => item.includes(term));
+  return matches(plan.primary) || (plan.identity ? matches(plan.identity) : true) && (plan.intents.length ? plan.intents.some(matches) : Boolean(plan.identity));
 }
 
 function toVideo(row: VideoRow): Video {
@@ -177,10 +231,9 @@ function whereClause(options: QueryOptions) {
   if (options.duration === "medium") where.push("v.duration_seconds >= 300 AND v.duration_seconds < 900");
   if (options.duration === "long") where.push("v.duration_seconds >= 900");
   if (options.search?.trim()) {
-    const terms = expandedSearchTerms(options.search);
-    const predicate = "(lower(v.original_title) LIKE ? OR lower(v.display_title) LIKE ? OR lower(v.description) LIKE ? OR lower(w.title) LIKE ? OR EXISTS (SELECT 1 FROM video_actresses vas JOIN actresses aas ON aas.id = vas.actress_id WHERE vas.video_id = v.id AND lower(aas.name) LIKE ?) OR EXISTS (SELECT 1 FROM video_tags vts JOIN tags ts ON ts.id = vts.tag_id WHERE vts.video_id = v.id AND lower(ts.name) = ?))";
-    where.push(`(${terms.map(() => predicate).join(" OR ")})`);
-    for (const search of terms) values.push(...Array(5).fill(`%${search}%`), search);
+    const search = databaseSearchClause(options.search);
+    where.push(search.sql);
+    values.push(...search.values);
   }
   return { sql: where.join(" AND "), values };
 }
@@ -204,8 +257,7 @@ function fallback(options: QueryOptions): CatalogPage {
     items = items.filter((video) => options.duration === "short" ? seconds(video) < 300 : options.duration === "medium" ? seconds(video) >= 300 && seconds(video) < 900 : seconds(video) >= 900);
   }
   if (options.search?.trim()) {
-    const terms = expandedSearchTerms(options.search);
-    items = items.filter((video) => terms.some((term) => [video.title, video.sceneTitle, video.workTitle, video.description, ...video.actresses, ...video.tags].some((value) => value.toLowerCase().includes(term))));
+    items = items.filter((video) => videoMatchesSearch(video, options.search));
   }
   const fallbackOrder = options.order ?? (options.sort === "top-rated" || options.sort === "rating" ? "rating" : options.sort === "popular" ? "popular" : "latest");
   if (fallbackOrder === "rating") items.sort((a, b) => b.rating - a.rating || b.id - a.id);
@@ -497,45 +549,43 @@ function emptySearch(query = ""): SearchSuggestions {
 export async function searchCatalog(query: string, limitPerGroup = 5): Promise<SearchSuggestions> {
   const term = searchTerm(query);
   if (term.length < 2) return emptySearch(term);
-  const terms = expandedSearchTerms(term);
+  const search = databaseSearchClause(term);
+  const entityTerm = search.plan.identity || term;
   const limit = Math.max(1, Math.min(8, limitPerGroup));
   const db = database();
   if (db) {
     try {
-      const contains = `%${term}%`;
-      const prefix = `${term}%`;
-      const videoPredicate = "(lower(v.display_title) LIKE ? OR lower(v.original_title) LIKE ? OR lower(v.description) LIKE ? OR lower(w.title) LIKE ? OR EXISTS (SELECT 1 FROM video_actresses va JOIN actresses a ON a.id = va.actress_id WHERE va.video_id = v.id AND lower(a.name) LIKE ?) OR EXISTS (SELECT 1 FROM video_tags vt JOIN tags t ON t.id = vt.tag_id WHERE vt.video_id = v.id AND lower(t.name) = ?))";
-      const videoWhere = terms.map(() => videoPredicate).join(" OR ");
-      const videoValues = terms.flatMap((search) => [...Array(5).fill(`%${search}%`), search]);
+      const contains = `%${entityTerm}%`;
+      const prefix = `${entityTerm}%`;
       const [videoResult, actressResult, movieResult, tvResult] = await Promise.all([
         db.prepare(`
           SELECT v.source_id AS id, v.slug, v.display_title AS label, v.year, v.type, v.thumbnail_key AS thumbnailKey
           FROM videos v LEFT JOIN works w ON w.id = v.work_id
-          WHERE v.is_active = 1 AND (${videoWhere})
+          WHERE v.is_active = 1 AND ${search.sql}
           ORDER BY CASE WHEN lower(v.display_title) = ? THEN 0 WHEN lower(v.display_title) LIKE ? THEN 1 ELSE 2 END,
             CASE WHEN v.popularity_rank IS NULL THEN 1 ELSE 0 END, v.popularity_rank, v.rating DESC, v.id DESC
           LIMIT ?
-        `).bind(...videoValues, term, prefix, limit).all<{ id: number; slug: string; label: string; year: number | null; type: "movie" | "tv_show"; thumbnailKey: string }>(),
+        `).bind(...search.values, entityTerm, prefix, limit).all<{ id: number; slug: string; label: string; year: number | null; type: "movie" | "tv_show"; thumbnailKey: string }>(),
         db.prepare(`
           SELECT id, name AS label, slug, video_count AS count FROM actresses
           WHERE video_count > 0 AND lower(name) LIKE ?
           ORDER BY CASE WHEN lower(name) = ? THEN 0 WHEN lower(name) LIKE ? THEN 1 ELSE 2 END, video_count DESC, sort_name
           LIMIT ?
-        `).bind(contains, term, prefix, limit).all<{ id: number; label: string; slug: string; count: number }>(),
+        `).bind(contains, entityTerm, prefix, limit).all<{ id: number; label: string; slug: string; count: number }>(),
         db.prepare(`
           SELECT w.id, w.title AS label, w.slug, COUNT(v.id) AS count FROM works w
           JOIN videos v ON v.work_id = w.id AND v.is_active = 1
           WHERE w.type = 'movie' AND lower(w.title) LIKE ? GROUP BY w.id
           ORDER BY CASE WHEN lower(w.title) = ? THEN 0 WHEN lower(w.title) LIKE ? THEN 1 ELSE 2 END, count DESC, w.sort_title
           LIMIT ?
-        `).bind(contains, term, prefix, limit).all<{ id: number; label: string; slug: string; count: number }>(),
+        `).bind(contains, entityTerm, prefix, limit).all<{ id: number; label: string; slug: string; count: number }>(),
         db.prepare(`
           SELECT w.id, w.title AS label, w.slug, COUNT(v.id) AS count FROM works w
           JOIN videos v ON v.work_id = w.id AND v.is_active = 1
           WHERE w.type = 'tv_show' AND lower(w.title) LIKE ? GROUP BY w.id
           ORDER BY CASE WHEN lower(w.title) = ? THEN 0 WHEN lower(w.title) LIKE ? THEN 1 ELSE 2 END, count DESC, w.sort_title
           LIMIT ?
-        `).bind(contains, term, prefix, limit).all<{ id: number; label: string; slug: string; count: number }>(),
+        `).bind(contains, entityTerm, prefix, limit).all<{ id: number; label: string; slug: string; count: number }>(),
       ]);
       return {
         query: term,
@@ -546,10 +596,10 @@ export async function searchCatalog(query: string, limitPerGroup = 5): Promise<S
       };
     } catch { /* use seed */ }
   }
-  const matches = seedVideos.filter((video) => terms.some((search) => [video.title, video.sceneTitle, video.workTitle, video.description, ...video.actresses, ...video.tags].some((value) => value.toLowerCase().includes(search))));
-  const actresses = seedActresses.filter((item) => item.name.toLowerCase().includes(term)).slice(0, limit);
-  const movieEntries = seedWorks("Movie").filter((item) => item.name.toLowerCase().includes(term)).slice(0, limit);
-  const tvEntries = seedWorks("TV Show").filter((item) => item.name.toLowerCase().includes(term)).slice(0, limit);
+  const matches = seedVideos.filter((video) => videoMatchesSearch(video, term));
+  const actresses = seedActresses.filter((item) => item.name.toLowerCase().includes(entityTerm)).slice(0, limit);
+  const movieEntries = seedWorks("Movie").filter((item) => item.name.toLowerCase().includes(entityTerm)).slice(0, limit);
+  const tvEntries = seedWorks("TV Show").filter((item) => item.name.toLowerCase().includes(entityTerm)).slice(0, limit);
   return {
     query: term,
     videos: matches.slice(0, limit).map((video) => ({ id: `video-${video.id}`, label: video.sceneTitle, href: `/watch/${video.slug}`, meta: `${video.year} · ${video.type}`, group: "videos", image: video.thumbnail })),
@@ -582,6 +632,70 @@ export async function getTaxonomy() {
     tags: seedTags,
     years: seedYears.map((year) => ({ year, count: seedVideos.filter((video) => video.year === year).length })),
   };
+}
+
+export async function getCatalogSitemapCounts(): Promise<CatalogSitemapCounts> {
+  const db = database();
+  if (db) {
+    try {
+      const [videos, actresses, works, tags, years] = await Promise.all([
+        db.prepare("SELECT COUNT(*) AS count FROM videos WHERE is_active = 1").first<{ count: number }>(),
+        db.prepare("SELECT COUNT(*) AS count FROM actresses WHERE video_count > 0").first<{ count: number }>(),
+        db.prepare("SELECT COUNT(*) AS count FROM works w WHERE EXISTS (SELECT 1 FROM videos v WHERE v.work_id = w.id AND v.is_active = 1)").first<{ count: number }>(),
+        db.prepare("SELECT COUNT(*) AS count FROM tags WHERE video_count > 0").first<{ count: number }>(),
+        db.prepare("SELECT COUNT(DISTINCT year) AS count FROM videos WHERE is_active = 1 AND year IS NOT NULL").first<{ count: number }>(),
+      ]);
+      return {
+        videos: Number(videos?.count ?? 0),
+        actresses: Number(actresses?.count ?? 0),
+        works: Number(works?.count ?? 0),
+        taxonomy: Number(tags?.count ?? 0) + Number(years?.count ?? 0),
+      };
+    } catch { /* use seed */ }
+  }
+
+  const actressCount = new Set(seedVideos.flatMap((video) => video.actresses)).size;
+  const workCount = new Set(seedVideos.map((video) => `${video.type}:${video.workTitle}`)).size;
+  return { videos: seedVideos.length, actresses: actressCount, works: workCount, taxonomy: seedTags.length + seedYears.length };
+}
+
+export async function getCatalogSitemapChunk(section: CatalogSitemapSection, offset: number, limit: number): Promise<CatalogSitemapEntry[]> {
+  const safeOffset = Math.max(0, Math.floor(offset));
+  const safeLimit = Math.min(10_000, Math.max(1, Math.floor(limit)));
+  const db = database();
+  if (db) {
+    try {
+      if (section === "videos") {
+        const result = await db.prepare("SELECT slug, updated_at AS updatedAt FROM videos WHERE is_active = 1 ORDER BY id LIMIT ? OFFSET ?").bind(safeLimit, safeOffset).all<{ slug: string; updatedAt: string }>();
+        return (result.results ?? []).map((item) => ({ path: `/watch/${item.slug}`, updatedAt: item.updatedAt }));
+      }
+      if (section === "actresses") {
+        const result = await db.prepare("SELECT slug, updated_at AS updatedAt FROM actresses WHERE video_count > 0 ORDER BY id LIMIT ? OFFSET ?").bind(safeLimit, safeOffset).all<{ slug: string; updatedAt: string }>();
+        return (result.results ?? []).map((item) => ({ path: `/actress/${item.slug}`, updatedAt: item.updatedAt }));
+      }
+      if (section === "works") {
+        const result = await db.prepare("SELECT w.slug, w.type, w.updated_at AS updatedAt FROM works w WHERE EXISTS (SELECT 1 FROM videos v WHERE v.work_id = w.id AND v.is_active = 1) ORDER BY w.id LIMIT ? OFFSET ?").bind(safeLimit, safeOffset).all<{ slug: string; type: "movie" | "tv_show"; updatedAt: string }>();
+        return (result.results ?? []).map((item) => ({ path: `/${item.type === "movie" ? "movie" : "tv-show"}/title/${item.slug}`, updatedAt: item.updatedAt }));
+      }
+      const [tagResult, yearResult] = await Promise.all([
+        db.prepare("SELECT slug FROM tags WHERE video_count > 0 ORDER BY id").all<{ slug: string }>(),
+        db.prepare("SELECT year, MAX(updated_at) AS updatedAt FROM videos WHERE is_active = 1 AND year IS NOT NULL GROUP BY year ORDER BY year DESC").all<{ year: number; updatedAt: string }>(),
+      ]);
+      return [
+        ...(tagResult.results ?? []).map((item) => ({ path: `/tag/${item.slug}` })),
+        ...(yearResult.results ?? []).map((item) => ({ path: `/year/${item.year}`, updatedAt: item.updatedAt })),
+      ].slice(safeOffset, safeOffset + safeLimit);
+    } catch { /* use seed */ }
+  }
+
+  const timestamp = new Date(0).toISOString();
+  const entries: Record<CatalogSitemapSection, CatalogSitemapEntry[]> = {
+    videos: seedVideos.map((video) => ({ path: `/watch/${video.slug}`, updatedAt: timestamp })),
+    actresses: [...new Set(seedVideos.flatMap((video) => video.actresses))].map((name) => ({ path: `/actress/${slugify(name)}`, updatedAt: timestamp })),
+    works: [...new Map(seedVideos.map((video) => [`${video.type}:${video.workTitle}`, video])).values()].map((video) => ({ path: `/${video.type === "Movie" ? "movie" : "tv-show"}/title/${slugify(video.workTitle)}`, updatedAt: timestamp })),
+    taxonomy: [...seedTags.map((tag) => ({ path: `/tag/${tag.slug}` })), ...seedYears.map((year) => ({ path: `/year/${year}` }))],
+  };
+  return entries[section].slice(safeOffset, safeOffset + safeLimit);
 }
 
 export async function getCatalogSitemap(): Promise<CatalogSitemap> {

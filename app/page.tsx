@@ -4,13 +4,14 @@ import { listVideos } from "@/lib/catalog/repository";
 import { pageNumber } from "@/lib/videos";
 import { catalogMetadata } from "@/lib/seo";
 import { catalogFilterPath, filterQueryOptions, hasCatalogFilters, parseCatalogFilters, type CatalogFilterParams } from "@/lib/catalog/filters";
+import { homeSeo } from "@/lib/seo-templates";
 
 export async function generateMetadata({ searchParams }: { searchParams: Promise<CatalogFilterParams> }) {
   const query = await searchParams;
   const filters = parseCatalogFilters(query);
+  const seo = homeSeo();
   return catalogMetadata({
-    title: "Celebrity Nude Scenes from Movies & TV | Luma",
-    description: "Watch newly added celebrity nude scenes, intimate movie moments and television clips organized by actress, film and series.",
+    ...seo,
     path: "/",
     page: query.page,
     index: !hasCatalogFilters(filters),

@@ -32,4 +32,27 @@ try {
   process.exit(1);
 }
 
+if (process.env.NEXT_PUBLIC_ADS_ENABLED === "true") {
+  const adVariables = [
+    "NEXT_PUBLIC_EXOCLICK_CATALOG_ZONE_ID",
+    "NEXT_PUBLIC_EXOCLICK_CATALOG_CLASS",
+    "NEXT_PUBLIC_EXOCLICK_SIDEBAR_ZONE_ID",
+    "NEXT_PUBLIC_EXOCLICK_SIDEBAR_CLASS",
+    "NEXT_PUBLIC_EXOCLICK_PLAYER_ZONE_ID",
+    "NEXT_PUBLIC_EXOCLICK_PLAYER_CLASS",
+    "ADS_TXT",
+  ];
+  const missingAds = adVariables.filter((key) => !process.env[key]?.trim());
+  if (missingAds.length) {
+    console.error(`Advertising is enabled but configuration is incomplete: ${missingAds.join(", ")}`);
+    process.exit(1);
+  }
+  const zoneVariables = adVariables.filter((key) => key.endsWith("ZONE_ID"));
+  const classVariables = adVariables.filter((key) => key.endsWith("CLASS"));
+  if (zoneVariables.some((key) => !/^\d+$/.test(process.env[key])) || classVariables.some((key) => !/^[a-z][a-z0-9_-]+$/i.test(process.env[key]))) {
+    console.error("ExoClick zone IDs or async classes are invalid. Copy them exactly from the generated zone snippets.");
+    process.exit(1);
+  }
+}
+
 console.log("Vercel production environment is configured.");

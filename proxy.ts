@@ -38,13 +38,13 @@ export function proxy(request: NextRequest) {
   if (!supplied || !sameValue(supplied.username, expectedUsername) || !sameValue(supplied.password, expectedPassword)) {
     return new NextResponse("Authentication required", {
       status: 401,
-      headers: { "www-authenticate": 'Basic realm="Luma operations", charset="UTF-8"', "cache-control": "no-store" },
+      headers: { "www-authenticate": 'Basic realm="Actrexx operations", charset="UTF-8"', "cache-control": "no-store" },
     });
   }
 
   const requestHeaders = new Headers(request.headers);
-  requestHeaders.set("x-luma-admin-authorized", "1");
-  requestHeaders.set("x-luma-admin-username", expectedUsername);
+  requestHeaders.set("x-actrexx-admin-authorized", "1");
+  requestHeaders.set("x-actrexx-admin-username", expectedUsername);
   return NextResponse.next({ request: { headers: requestHeaders } });
 }
 

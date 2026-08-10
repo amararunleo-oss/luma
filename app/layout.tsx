@@ -19,6 +19,9 @@ export const viewport: Viewport = {
 export async function generateMetadata(): Promise<Metadata> {
   const origin = await requestOrigin();
   const base = new URL(origin);
+  const googleVerification = process.env.GOOGLE_SITE_VERIFICATION?.trim();
+  const bingVerification = process.env.BING_SITE_VERIFICATION?.trim();
+  const yandexVerification = process.env.YANDEX_SITE_VERIFICATION?.trim();
   return {
     metadataBase: base,
     applicationName: SITE.name,
@@ -32,6 +35,11 @@ export async function generateMetadata(): Promise<Metadata> {
     referrer: "strict-origin-when-cross-origin",
     formatDetection: { email: false, address: false, telephone: false },
     manifest: "/manifest.webmanifest",
+    verification: {
+      ...(googleVerification ? { google: googleVerification } : {}),
+      ...(yandexVerification ? { yandex: yandexVerification } : {}),
+      ...(bingVerification ? { other: { "msvalidate.01": bingVerification } } : {}),
+    },
     icons: {
       icon: [{ url: "/favicon.ico", sizes: "any" }, { url: "/favicon.svg", type: "image/svg+xml" }],
       shortcut: "/favicon.ico",

@@ -46,3 +46,4 @@ yarn-error.log*
 /.dev-server.*.log
 /*.tsbuildinfo
 /authorized-media.json
+/wrangler.import.jsonc

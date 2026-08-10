@@ -3,8 +3,9 @@ import { SearchDiscovery } from "@/components/search/search-discovery";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { listVideos, searchCatalog } from "@/lib/catalog/repository";
 import { pageNumber } from "@/lib/videos";
+import { SITE } from "@/lib/site";
 
-export const metadata = { title: "Search Celebrity Scenes | Luma", alternates: { canonical: "/search" }, robots: { index: false, follow: true } };
+export const metadata = { title: `Search Celebrity Scenes | ${SITE.name}`, alternates: { canonical: "/search" }, robots: { index: false, follow: true } };
 
 export default async function Search({ searchParams }: { searchParams: Promise<{ q?: string; page?: string }> }) {
   const query = await searchParams;

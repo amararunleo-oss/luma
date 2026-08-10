@@ -6,7 +6,7 @@ import { getAdminDashboard } from "@/lib/operations/repository";
 import { MonitorAction, ReportAction } from "@/components/admin/admin-actions";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Catalog operations | Luma", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "Catalog operations | Actrexx", robots: { index: false, follow: false } };
 
 function number(value: unknown) { return Number(value ?? 0).toLocaleString("en-US"); }
 function date(value?: string | null) { return value ? new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "Never"; }
@@ -23,7 +23,7 @@ export default async function AdminPage() {
     { label: "Monitor alerts", value: dashboard.health.unhealthy, icon: HeartPulse, tone: dashboard.health.unhealthy ? "bad" : "good" },
   ];
   return <main className="admin-shell">
-    <header className="admin-topbar"><div><Link href="/" aria-label="Back to site"><ArrowLeft size={16} /></Link><span className="brand-dot" /><strong>LUMA OPERATIONS</strong></div><div><span>{access.user.displayName}</span></div></header>
+    <header className="admin-topbar"><div><Link href="/" aria-label="Back to site"><ArrowLeft size={16} /></Link><span className="brand-dot" /><strong>ACTREXX OPERATIONS</strong></div><div><span>{access.user.displayName}</span></div></header>
     <div className="admin-container">
       <section className="admin-heading"><div><p>Catalog control center</p><h1>Data health & reports</h1><span>Review catalog quality, visitor reports and provider availability.</span></div><MonitorAction /></section>
       <section className="admin-stat-grid">{cards.map((card) => { const Icon = card.icon; return <article className={card.tone} key={card.label}><span><Icon size={17} /></span><div><strong>{number(card.value)}</strong><p>{card.label}</p></div></article>; })}</section>

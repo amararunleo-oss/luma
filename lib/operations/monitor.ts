@@ -12,7 +12,7 @@ async function checkEmbed(embedId: number): Promise<{ status: EmbedStatus; time:
       method: "GET",
       redirect: "follow",
       signal: AbortSignal.timeout(8_000),
-      headers: { accept: "text/html,application/xhtml+xml", "user-agent": "Luma catalog health monitor/1.0" },
+      headers: { accept: "text/html,application/xhtml+xml", "user-agent": "Actrexx catalog health monitor/1.0" },
     });
     await response.body?.cancel();
     if (response.ok) return { status: "ok", time: Date.now() - started, error: "" };

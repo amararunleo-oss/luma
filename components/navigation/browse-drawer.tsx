@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
+import { SITE } from "@/lib/site";
 
 const sections = [
   { label: "Latest", description: "New movie and TV scenes", href: "/", icon: Sparkles },
@@ -62,8 +63,8 @@ export function BrowseDrawer() {
   const drawer = (
     <div className={`drawer-layer${open ? " open" : ""}`} aria-hidden={!open}>
       <button className="drawer-backdrop" type="button" aria-label="Close browse menu" tabIndex={open ? 0 : -1} onClick={() => setOpen(false)} />
-      <aside id="browse-drawer" className="browse-drawer" role="dialog" aria-modal="true" aria-label="Browse Luma">
-        <header><div><Clapperboard size={18} aria-hidden="true" /><span>Explore Luma</span></div><button ref={closeButton} type="button" aria-label="Close browse menu" onClick={() => setOpen(false)}><X size={18} aria-hidden="true" /></button></header>
+      <aside id="browse-drawer" className="browse-drawer" role="dialog" aria-modal="true" aria-label={`Browse ${SITE.name}`}>
+        <header><div><Clapperboard size={18} aria-hidden="true" /><span>Explore {SITE.name}</span></div><button ref={closeButton} type="button" aria-label="Close browse menu" onClick={() => setOpen(false)}><X size={18} aria-hidden="true" /></button></header>
         <nav aria-label="Browse sections">
           {sections.map((item) => {
             const Icon = item.icon;
