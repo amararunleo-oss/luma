@@ -1,22 +1,13 @@
-import { env } from "cloudflare:workers";
 import { AppError } from "@/lib/http/errors";
+import { getD1Database, type D1DatabaseLike, type D1Result, type D1Statement } from "@/lib/cloudflare/d1-http";
 
-export type D1Result<T> = { results?: T[]; success?: boolean };
-export type D1Statement = {
-  bind(...values: unknown[]): D1Statement;
-  all<T>(): Promise<D1Result<T>>;
-  first<T>(): Promise<T | null>;
-  run(): Promise<D1Result<unknown>>;
-};
-export type OperationsDatabase = {
-  prepare(query: string): D1Statement;
-  batch(statements: D1Statement[]): Promise<D1Result<unknown>[]>;
-};
+export type OperationsDatabase = D1DatabaseLike;
+export type { D1Result, D1Statement };
 
 let schemaReady: Promise<void> | null = null;
 
 function binding() {
-  return (env as unknown as { DB?: OperationsDatabase }).DB ?? null;
+  return getD1Database();
 }
 
 async function initialize(db: OperationsDatabase) {

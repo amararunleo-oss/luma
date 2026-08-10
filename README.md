@@ -1,152 +1,95 @@
-# Luma video catalog
+# Luma
 
-A Next.js-compatible Vinext catalog backed by Cloudflare D1 and R2. The source
-importer stores normalized metadata plus one canonical preview image per video;
-video files are never downloaded.
+Luma is a production Next.js catalog deployed on Vercel. Catalog metadata stays
+in Cloudflare D1 and canonical preview images stay in Cloudflare R2; video files
+are not stored by this application.
 
-## Prerequisites
+## Local development
 
-- Node.js `>=22.13.0`
-
-## Quick Start
+Requirements: Node.js 22.13 or newer.
 
 ```bash
 npm install
 npm run dev
-npm run build
 ```
 
-This starter does not use `wrangler.jsonc`.
+Without remote D1 variables, local development intentionally uses the small
+built-in sample catalog. Copy `.env.example` to `.env.local` and add the D1
+variables to use the full remote catalog locally.
+
+## Vercel deployment
+
+Import the GitHub repository into Vercel. The framework preset is pinned to
+Next.js and the standard commands are:
+
+```text
+Install: npm install
+Build: npm run build
+Output: Next.js default
+```
+
+Add the following variables to both Preview and Production environments:
+
+- `NEXT_PUBLIC_SITE_URL`: final HTTPS site origin.
+- `CLOUDFLARE_ACCOUNT_ID`: Cloudflare account ID.
+- `CLOUDFLARE_D1_DATABASE_ID`: production D1 database UUID.
+- `CLOUDFLARE_D1_API_TOKEN`: server-only token with D1 Read and D1 Write.
+- `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_ENDPOINT`:
+  server-only S3 credentials used by the fallback `/media` proxy.
+
+For the fastest image delivery, expose the R2 bucket through a custom domain and
+set `NEXT_PUBLIC_MEDIA_BASE_URL`. When that variable is present, R2 credentials
+are not required for public image reads, though the health monitor still benefits
+from them.
+
+Advertising, legal, reporting and monitoring variables are documented in
+`.env.example`. Set `ADMIN_USERNAME` and a strong `ADMIN_PASSWORD` to protect
+the operations console with HTTP Basic authentication. Never add real
+`.env.local` or `.env.r2` files to Git.
+
+The Vercel prebuild guard stops a production deployment when required catalog or
+media variables are missing, preventing an accidental sample-data launch.
 
 ## Catalog import
 
-Run the complete, resumable pipeline:
+Run the complete resumable metadata and preview pipeline:
 
 ```bash
 npm run catalog:import:all
 ```
 
-It imports the chronological catalog with detail metadata and one player poster,
-then merges Popular and Top Rated ordering without downloading the same images
-again. State is stored per listing under `data/staging/videocelebs/`; canonical
-images are sharded under `storage/previews/<prefix>/<source-id>/poster`.
+The importer keeps normalized metadata under `data/staging/videocelebs/` and one
+canonical preview per record under `storage/previews/`. Both directories are
+deliberately excluded from Git.
 
-To refresh localhost with the records imported so far, run this in a separate
-terminal and reload the browser:
+Build a D1-compatible catalog snapshot:
 
 ```bash
-npm run catalog:sync:local
+npm run catalog:db:build
 ```
 
-Local development serves the canonical files directly from `storage/previews`;
-production continues to use the immutable R2 media route.
+The generated `data/staging/videocelebs/local-sync.sql` can be imported into the
+production D1 database with Wrangler or the Cloudflare D1 import API. After the
+import, add that database UUID and a scoped API token to Vercel.
 
-### Repair and upload thumbnails to R2
+## R2 previews
 
-Repair any source poster that failed validation by using its ID-matched listing
-thumbnail, then confirm local catalog/file parity:
-
-```bash
-npm run catalog:thumbnails:repair -- --execute
-npm run r2:thumbnails:plan
-```
-
-For Cloudflare R2, create a Standard-storage bucket named `site-creator-r2`,
-bind it to the Worker as `THUMBNAILS`, and create an Object Read & Write S3 API
-token restricted to that bucket. Copy `.env.r2.example` to the ignored
-`.env.r2` file and enter the account ID, access key, and secret. Uploads are
-resumable by key and size and never delete remote objects:
+Copy `.env.r2.example` to `.env.r2`, then upload and verify the canonical files:
 
 ```bash
 npm run r2:thumbnails:upload
 npm run r2:thumbnails:verify
 ```
 
-The uploader stores objects with their catalog key (`previews/v1/.../poster`),
-correct image content type, one-year immutable caching, and source/checksum
-metadata. Rerunning the upload skips objects already present at the same size;
-pass `-- --force` only when every remote object must be replaced.
+Uploads are resumable, preserve catalog keys, and do not delete remote objects.
 
-The source authorization represented by the project owner and the deliberately
-excluded asset types are documented in `RIGHTS.md`.
+## Validation
 
-## Included shape
-
-- application routes and UI under `app/`
-- reusable catalog components under `components/`
-- normalized D1 schema under `db/`
-- resumable source importer under `scripts/`
-- `.openai/hosting.json` declares the D1 `DB` and R2 `THUMBNAILS` bindings
-- `worker/index.ts` serves immutable local preview keys from R2
-
-## Workspace Auth Headers
-
-Signed-in visitors receive both `oai-authenticated-user-id` and `oai-authenticated-user-email`. Private Sites require every visitor to sign in; public Sites may also have anonymous visitors, for whom neither header is present.
-
-The user ID is stable for the same user on the same Site and different across Sites. Email and name are intended for display or contact purposes.
-
-SIWC-authenticated workspace sites may also receive
-`oai-authenticated-user-full-name` when the user's SIWC profile has a non-empty
-`name` claim. The full-name value is percent-encoded UTF-8 and is accompanied by
-`oai-authenticated-user-full-name-encoding: percent-encoded-utf-8`.
-
-Treat the full name as optional and fall back to email when it is absent:
-
-```tsx
-import { headers } from "next/headers";
-
-export default async function Home() {
-  const requestHeaders = await headers();
-  const userId = requestHeaders.get("oai-authenticated-user-id");
-  const email = requestHeaders.get("oai-authenticated-user-email");
-  const encodedFullName = requestHeaders.get("oai-authenticated-user-full-name");
-  const fullName =
-    encodedFullName &&
-    requestHeaders.get("oai-authenticated-user-full-name-encoding") ===
-      "percent-encoded-utf-8"
-      ? decodeURIComponent(encodedFullName)
-      : null;
-
-  const displayName = fullName ?? email;
-  // ...
-}
+```bash
+npm run lint
+npm run build
+node tests/rendered-html.test.mjs
 ```
 
-## Optional Dispatch-Owned ChatGPT Sign-In
-
-Import the ready-to-use helpers from `app/chatgpt-auth.ts` when the site needs
-optional or required ChatGPT sign-in:
-
-- Use `getChatGPTUser()` for optional signed-in UI.
-- Use `requireChatGPTUser(returnTo)` for server-rendered pages that should send
-  anonymous visitors through Sign in with ChatGPT.
-- Use `chatGPTSignInPath(returnTo)` and `chatGPTSignOutPath(returnTo)` for
-  browser links or actions.
-- Pass a same-origin relative `returnTo` path for the destination after sign-in
-  or sign-out. The helper validates and safely encodes it.
-- Mark protected pages with `export const dynamic = "force-dynamic"` because
-  they depend on per-request identity headers.
-
-Dispatch owns `/signin-with-chatgpt`, `/signout-with-chatgpt`, `/callback`, the
-OAuth cookies, and identity header injection. Do not implement app routes for
-those reserved paths. Routes that do not import and call the helper remain
-anonymous-compatible.
-
-SIWC establishes identity only; it does not prove workspace membership. Use the
-Sites hosting platform's access policy controls for workspace-wide restrictions,
-or enforce explicit server-side membership or allowlist checks.
-
-Use SIWC for account pages, user-specific dashboards, saved records, and write
-actions tied to the current ChatGPT user. Leave public content anonymous.
-
-## Useful Commands
-
-- `npm run dev`: start local development
-- `npm run build`: verify the vinext build output
-- `npm test`: build the starter and verify its rendered loading skeleton
-- `npm run db:generate`: generate Drizzle migrations after schema changes
-
-## Learn More
-
-- [vinext Documentation](https://github.com/cloudflare/vinext)
-- [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
+Source authorization and deliberately excluded media types are documented in
+`RIGHTS.md`.

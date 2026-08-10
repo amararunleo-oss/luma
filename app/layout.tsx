@@ -27,7 +27,7 @@ export async function generateMetadata(): Promise<Metadata> {
     publisher: SITE.name,
     title: SITE.title,
     description: SITE.description,
-    keywords: SITE.keywords,
+    keywords: [...SITE.keywords],
     category: "entertainment",
     referrer: "strict-origin-when-cross-origin",
     formatDetection: { email: false, address: false, telephone: false },

@@ -66,18 +66,18 @@ test("keeps mobile browse and filters outside fragile header layout behavior", a
   assert.match(css, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
 });
 
-test("serves R2 thumbnails directly with immutable conditional caching", async () => {
-  const [thumbnail, mediaRoute, worker] = await Promise.all([
+test("serves R2 thumbnails through the Vercel-compatible S3 adapter with immutable caching", async () => {
+  const [thumbnail, mediaRoute, storage] = await Promise.all([
     source("components/media/thumbnail.tsx"),
     source("app/media/[...key]/route.ts"),
-    source("worker/index.ts"),
+    source("lib/cloudflare/r2-s3.ts"),
   ]);
 
-  assert.match(thumbnail, /unoptimized=\{src\.startsWith\("\/media\/"\)\}/);
+  assert.match(thumbnail, /unoptimized/);
   assert.match(mediaRoute, /if-none-match/);
   assert.match(mediaRoute, /cdn-cache-control/);
-  assert.match(worker, /status: 304/);
-  assert.match(worker, /max-age=31536000, immutable/);
+  assert.match(storage, /GetObjectCommand/);
+  assert.match(mediaRoute, /max-age=31536000, immutable/);
 });
 
 test("does not expose dataset counts in public navigation and directories", async () => {

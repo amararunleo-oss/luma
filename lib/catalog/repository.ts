@@ -1,5 +1,5 @@
-import { env } from "cloudflare:workers";
 import { actresses as seedActresses, slugify, tags as seedTags, videos as seedVideos, years as seedYears, type Video, type VideoType } from "@/lib/videos";
+import { getD1Database } from "@/lib/cloudflare/d1-http";
 
 export const DEFAULT_PAGE_SIZE = 24;
 
@@ -45,10 +45,6 @@ type DirectoryOptions = {
   page?: number;
   pageSize?: number;
 };
-
-type D1Result<T> = { results?: T[] };
-type Statement = { bind(...values: unknown[]): Statement; all<T>(): Promise<D1Result<T>>; first<T>(): Promise<T | null> };
-type Database = { prepare(query: string): Statement };
 
 type VideoRow = {
   id: number;
@@ -97,7 +93,7 @@ export type CatalogSitemap = {
 };
 
 function database() {
-  return (env as unknown as { DB?: Database }).DB ?? null;
+  return getD1Database();
 }
 
 function duration(seconds: number) {
@@ -108,7 +104,9 @@ function duration(seconds: number) {
 
 function thumbnailUrl(key: string) {
   if (key.startsWith("/")) return key;
-  return `/media/${key.replace(/^media\//, "")}`;
+  const normalized = key.replace(/^media\//, "");
+  const mediaBase = process.env.NEXT_PUBLIC_MEDIA_BASE_URL?.trim().replace(/\/$/, "");
+  return mediaBase ? `${mediaBase}/${normalized}` : `/media/${normalized}`;
 }
 
 function searchTerm(value?: string) {

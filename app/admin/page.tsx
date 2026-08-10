@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 import Link from "next/link";
-import { AlertTriangle, ArrowLeft, CheckCircle2, CircleHelp, Database, FileWarning, HeartPulse, ImageOff, LogOut, MonitorCheck, ShieldCheck, VideoOff } from "lucide-react";
+import { AlertTriangle, ArrowLeft, CheckCircle2, CircleHelp, Database, FileWarning, HeartPulse, ImageOff, MonitorCheck, ShieldCheck, VideoOff } from "lucide-react";
 import { getAdminAccess } from "@/lib/admin/auth";
-import { chatGPTSignOutPath } from "@/app/chatgpt-auth";
 import { getAdminDashboard } from "@/lib/operations/repository";
 import { MonitorAction, ReportAction } from "@/components/admin/admin-actions";
 
@@ -15,7 +13,7 @@ function date(value?: string | null) { return value ? new Intl.DateTimeFormat("e
 
 export default async function AdminPage() {
   const access = await getAdminAccess("/admin");
-  if (access.status === "anonymous") redirect(access.signInPath);
+  if (access.status === "anonymous") return <AdminDenied email="Unknown administrator" />;
   if (access.status === "denied") return <AdminDenied email={access.email} />;
   const dashboard = await getAdminDashboard();
   const cards = [
@@ -25,7 +23,7 @@ export default async function AdminPage() {
     { label: "Monitor alerts", value: dashboard.health.unhealthy, icon: HeartPulse, tone: dashboard.health.unhealthy ? "bad" : "good" },
   ];
   return <main className="admin-shell">
-    <header className="admin-topbar"><div><Link href="/" aria-label="Back to site"><ArrowLeft size={16} /></Link><span className="brand-dot" /><strong>LUMA OPERATIONS</strong></div><div><span>{access.user.displayName}</span>{!access.user.local && <Link href={chatGPTSignOutPath("/")}><LogOut size={14} />Sign out</Link>}</div></header>
+    <header className="admin-topbar"><div><Link href="/" aria-label="Back to site"><ArrowLeft size={16} /></Link><span className="brand-dot" /><strong>LUMA OPERATIONS</strong></div><div><span>{access.user.displayName}</span></div></header>
     <div className="admin-container">
       <section className="admin-heading"><div><p>Catalog control center</p><h1>Data health & reports</h1><span>Review catalog quality, visitor reports and provider availability.</span></div><MonitorAction /></section>
       <section className="admin-stat-grid">{cards.map((card) => { const Icon = card.icon; return <article className={card.tone} key={card.label}><span><Icon size={17} /></span><div><strong>{number(card.value)}</strong><p>{card.label}</p></div></article>; })}</section>

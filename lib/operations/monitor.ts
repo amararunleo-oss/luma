@@ -1,12 +1,10 @@
-import { env } from "cloudflare:workers";
 import { AppError } from "@/lib/http/errors";
 import { operationsDatabase } from "@/lib/operations/database";
+import { headR2Object, hasR2Configuration } from "@/lib/cloudflare/r2-s3";
 
 type Candidate = { id: number; embedId: number; thumbnailKey: string };
 type EmbedStatus = "ok" | "broken" | "blocked" | "timeout";
 type ThumbnailStatus = "ok" | "missing" | "error" | "unknown";
-type Bucket = { head(key: string): Promise<unknown | null> };
-
 async function checkEmbed(embedId: number): Promise<{ status: EmbedStatus; time: number; error: string }> {
   const started = Date.now();
   try {
@@ -30,9 +28,8 @@ async function checkThumbnail(key: string): Promise<ThumbnailStatus> {
   if (!key || !key.trim()) return "missing";
   if (key.startsWith("/")) return "unknown";
   try {
-    const bucket = (env as unknown as { THUMBNAILS?: Bucket }).THUMBNAILS;
-    if (!bucket) return "unknown";
-    return await bucket.head(key.replace(/^media\//, "")) ? "ok" : "missing";
+    if (!hasR2Configuration()) return "unknown";
+    return await headR2Object(key.replace(/^media\//, "")) ? "ok" : "missing";
   } catch {
     return "error";
   }
