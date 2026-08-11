@@ -27,29 +27,55 @@ const frequencyCount = Number(process.env.NEXT_PUBLIC_EXOCLICK_MOBILE_POPUNDER_F
 
 export function MobilePopunder() {
   useEffect(() => {
-    if (!adsEnabled || !zoneId || !/^\d+$/.test(zoneId) || !window.matchMedia("(max-width: 820px)").matches) return;
-    if (document.getElementById("actrexx-mobile-popunder")) return;
+    if (!adsEnabled || !zoneId || !/^\d+$/.test(zoneId)) return;
+    const media = window.matchMedia("(max-width: 820px)");
+    let alive = true;
+    let attempts = 0;
+    let retryTimer: number | undefined;
 
-    window.ad_idzone = Number(zoneId);
-    window.ad_popup_fallback = false;
-    window.ad_popup_force = false;
-    window.ad_chrome_enabled = true;
-    window.ad_new_tab = false;
-    window.ad_frequency_period = Number.isFinite(frequencyPeriod) && frequencyPeriod > 0 ? frequencyPeriod : 30;
-    window.ad_frequency_count = Number.isFinite(frequencyCount) && frequencyCount > 0 ? frequencyCount : 3;
-    window.ad_trigger_method = 2;
-    window.ad_trigger_class = "actrexx-mobile-pop";
-    window.ad_trigger_delay = 0;
-    window.ad_capping_enabled = true;
-    window.ad_tcf_enabled = true;
-    window.ad_agego_cross_site_enabled = true;
+    const load = () => {
+      if (!alive || !media.matches) return;
+      const existing = document.getElementById("actrexx-mobile-popunder") as HTMLScriptElement | null;
+      if (existing?.dataset.ready === "true" || (existing && !existing.dataset.failed)) return;
+      existing?.remove();
 
-    const script = document.createElement("script");
-    script.id = "actrexx-mobile-popunder";
-    script.type = "application/javascript";
-    script.async = true;
-    script.src = "https://a.pemsrv.com/popunder1000.js";
-    document.body.appendChild(script);
+      window.ad_idzone = Number(zoneId);
+      window.ad_popup_fallback = false;
+      window.ad_popup_force = false;
+      window.ad_chrome_enabled = true;
+      window.ad_new_tab = false;
+      window.ad_frequency_period = Number.isFinite(frequencyPeriod) && frequencyPeriod > 0 ? frequencyPeriod : 30;
+      window.ad_frequency_count = Number.isFinite(frequencyCount) && frequencyCount > 0 ? frequencyCount : 3;
+      window.ad_trigger_method = 2;
+      window.ad_trigger_class = "actrexx-mobile-pop";
+      window.ad_trigger_delay = 0;
+      window.ad_capping_enabled = true;
+      window.ad_tcf_enabled = true;
+      window.ad_agego_cross_site_enabled = true;
+
+      const script = document.createElement("script");
+      script.id = "actrexx-mobile-popunder";
+      script.type = "application/javascript";
+      script.async = true;
+      script.src = "https://a.pemsrv.com/popunder1000.js";
+      script.addEventListener("load", () => { script.dataset.ready = "true"; }, { once: true });
+      script.addEventListener("error", () => {
+        script.dataset.failed = "true";
+        if (alive && attempts < 1) {
+          attempts += 1;
+          retryTimer = window.setTimeout(load, 1_500);
+        }
+      }, { once: true });
+      document.body.appendChild(script);
+    };
+
+    load();
+    media.addEventListener("change", load);
+    return () => {
+      alive = false;
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
+      media.removeEventListener("change", load);
+    };
   }, []);
 
   return null;

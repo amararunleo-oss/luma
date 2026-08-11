@@ -8,7 +8,6 @@ import { MobilePopunder } from "./mobile-popunder";
 type Device = "mobile" | "desktop";
 
 const catalogRoute = /^\/(?:latest|most-popular|top-rated|actress|movie|tv-show|tag|year)(?:\/|$)/;
-const directoryRoutes = new Set(["/actress", "/movie", "/tv-show"]);
 
 export function GlobalAdFormats() {
   const pathname = usePathname();
@@ -25,12 +24,20 @@ export function GlobalAdFormats() {
     return () => media.removeEventListener("change", update);
   }, []);
 
+  useEffect(() => {
+    const refreshRestoredAds = (event: PageTransitionEvent) => {
+      if (event.persisted) window.location.reload();
+    };
+    window.addEventListener("pageshow", refreshRestoredAds);
+    return () => window.removeEventListener("pageshow", refreshRestoredAds);
+  }, []);
+
   if (!device) return null;
 
   return (
     <>
-      {device === "desktop" && <AdSlot active={directoryRoutes.has(pathname)} placement="desktop-sticky" />}
-      <AdSlot active={isCatalog} placement="catalog-instant" />
+      {device === "desktop" && <AdSlot active={monetizedRoute} placement="desktop-sticky" />}
+      <AdSlot active={monetizedRoute} placement="catalog-instant" />
       {device === "desktop" && <AdSlot active={isWatch} placement="watch-slider" />}
       {device === "mobile" && <MobilePopunder />}
       <AdSlot active={monetizedRoute} placement="fullpage" />

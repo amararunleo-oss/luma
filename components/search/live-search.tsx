@@ -1,8 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import Link from "@/components/navigation/revenue-link";
+import { usePathname } from "next/navigation";
 import { AlertCircle, Film, LoaderCircle, Play, Search, Tv, UserRound, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SearchSuggestion, SearchSuggestions } from "@/lib/catalog/repository";
@@ -15,7 +15,6 @@ const groupDetails = {
 } as const;
 
 export function LiveSearch() {
-  const router = useRouter();
   const pathname = usePathname();
   const root = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
@@ -144,7 +143,7 @@ export function LiveSearch() {
     } else if (event.key === "Enter" && activeIndex >= 0) {
       event.preventDefault();
       setOpen(false);
-      router.push(flatResults[activeIndex].href);
+      window.location.assign(flatResults[activeIndex].href);
     }
   }
 

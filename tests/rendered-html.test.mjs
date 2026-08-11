@@ -151,7 +151,7 @@ test("builds clean absolute filter URLs and renders filtered empty states", asyn
   ]);
   assert.match(filters, /new URLSearchParams\(\)/);
   assert.match(filters, /if \(value\) query\.set/);
-  assert.match(filters, /router\.push\(search \? `\$\{basePath\}\?\$\{search\}` : basePath\)/);
+  assert.match(filters, /window\.location\.assign\(search \? `\$\{basePath\}\?\$\{search\}` : basePath\)/);
   assert.match(yearPage, /result\.total === 0 && !hasCatalogFilters\(filters\)/);
   assert.doesNotMatch(moviePage, /result\.total === 0/);
   assert.doesNotMatch(tvPage, /result\.total === 0/);
@@ -290,12 +290,15 @@ test("publishes complete VideoObject data only on canonical watch pages", async 
   assert.match(repository, /COALESCE\(v\.published_at, v\.first_seen_at\) AS publishedAt/);
 });
 
-test("keeps ExoClick disabled until complete validated zone configuration is supplied", async () => {
-  const [adSlot, globalFormats, mobilePopunder, catalog, directory, layout, envExample, productionCheck, adCheck, adsTxtRoute, favicon, socialImage] = await Promise.all([
+test("keeps ExoClick configuration valid and uses a fresh document lifecycle for monetized navigation", async () => {
+  const [adSlot, globalFormats, mobilePopunder, revenueLink, catalog, catalogFilters, liveSearch, directory, layout, envExample, productionCheck, adCheck, adsTxtRoute, favicon, socialImage] = await Promise.all([
     source("components/ads/ad-slot.tsx"),
     source("components/ads/global-ad-formats.tsx"),
     source("components/ads/mobile-popunder.tsx"),
+    source("components/navigation/revenue-link.tsx"),
     source("components/catalog.tsx"),
+    source("components/catalog-filters.tsx"),
+    source("components/search/live-search.tsx"),
     source("components/directory/entity-directory.tsx"),
     source("app/layout.tsx"),
     source(".env.example"),
@@ -322,14 +325,16 @@ test("keeps ExoClick disabled until complete validated zone configuration is sup
   assert.match(adSlot, /matchMedia\("\(max-width: 820px\)"\)/);
   assert.match(adSlot, /Device \| null/);
   assert.match(adSlot, /data-device=\{device \|\| "pending"\}/);
-  assert.match(adSlot, /usePathname/);
-  assert.match(adSlot, /useSearchParams/);
-  assert.match(adSlot, /data-processed="true"/);
+  assert.doesNotMatch(adSlot, /usePathname|useSearchParams|routeKey/);
+  assert.match(adSlot, /zone\.dataset\.processed === "true"/);
   assert.match(adSlot, /host\.replaceChildren\(zone\)/);
   assert.match(adSlot, /scheduleServe\(\)/);
-  assert.match(adSlot, /servedOverlayZoneRef/);
+  assert.match(adSlot, /hasRenderedCreative/);
+  assert.doesNotMatch(adSlot, /servedOverlayZoneRef|RETRY_AFTER_MS|mountZone\(true\)/);
   assert.doesNotMatch(adSlot, /data-ex_av/);
-  assert.match(globalFormats, /directoryRoutes/);
+  assert.match(globalFormats, /device === "desktop" && <AdSlot active=\{monetizedRoute\} placement="desktop-sticky"/);
+  assert.match(globalFormats, /<AdSlot active=\{monetizedRoute\} placement="catalog-instant"/);
+  assert.doesNotMatch(globalFormats, /directoryRoutes/);
   assert.match(globalFormats, /placement="catalog-instant"/);
   assert.match(globalFormats, /placement="watch-slider"/);
   assert.match(globalFormats, /device === "desktop" && <AdSlot active=\{isWatch\} placement="watch-slider"/);
@@ -339,7 +344,13 @@ test("keeps ExoClick disabled until complete validated zone configuration is sup
   assert.match(mobilePopunder, /a\.pemsrv\.com\/popunder1000\.js/);
   assert.match(mobilePopunder, /actrexx-mobile-pop/);
   assert.match(mobilePopunder, /matchMedia\("\(max-width: 820px\)"\)/);
-  assert.match(catalog, /video-thumb actrexx-mobile-pop/);
+  assert.match(mobilePopunder, /script\.addEventListener\("error"/);
+  assert.match(revenueLink, /return <a/);
+  assert.match(revenueLink, /actrexx-mobile-pop/);
+  assert.doesNotMatch(revenueLink, /next\/link/);
+  assert.match(catalog, /navigation\/revenue-link/);
+  assert.match(catalogFilters, /window\.location\.assign/);
+  assert.match(liveSearch, /window\.location\.assign/);
   assert.match(directory, /placement="catalog-top"/);
   assert.match(layout, /<GlobalAdFormats \/>/);
   assert.doesNotMatch(layout, /AdRouteSync/);

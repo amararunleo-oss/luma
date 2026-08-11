@@ -1,6 +1,6 @@
 import { Film, Flame, Sparkles, Star, Tv, UserRound } from "lucide-react";
 import { getTaxonomy } from "@/lib/catalog/repository";
-import Link from "next/link";
+import Link from "@/components/navigation/revenue-link";
 import { LiveSearch } from "@/components/search/live-search";
 import { AdSlot } from "@/components/ads/ad-slot";
 import { SITE } from "@/lib/site";

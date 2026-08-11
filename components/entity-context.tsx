@@ -1,5 +1,5 @@
 import type { EntityContext as EntityContextValue } from "@/lib/entity-context";
-import Link from "next/link";
+import Link from "@/components/navigation/revenue-link";
 
 export function EntityContext({ value }: { value: EntityContextValue }) {
   return (

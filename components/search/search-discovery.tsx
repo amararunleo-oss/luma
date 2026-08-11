@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/navigation/revenue-link";
 import { Film, Tv, UserRound } from "lucide-react";
 import type { SearchSuggestions } from "@/lib/catalog/repository";
 

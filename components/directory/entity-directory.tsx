@@ -3,7 +3,7 @@ import { Sidebar } from "@/components/site-chrome";
 import { AlphabetFilter } from "./alphabet-filter";
 import { DirectorySearch } from "./directory-search";
 import { Pagination } from "@/components/catalog";
-import Link from "next/link";
+import Link from "@/components/navigation/revenue-link";
 import { AdSlot } from "@/components/ads/ad-slot";
 
 export function EntityDirectory({ title, description, entries, total, page, pageSize, basePath, activeLetter, query, entryPath, searchLabel }: {

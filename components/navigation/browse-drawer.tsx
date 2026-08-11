@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown, Clapperboard, Film, Flame, Menu, Sparkles, Star, Tags, Tv, UserRound, X } from "lucide-react";
-import Link from "next/link";
+import Link from "@/components/navigation/revenue-link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";

@@ -1,5 +1,5 @@
 import { FileQuestion, Home, Search } from "lucide-react";
-import Link from "next/link";
+import Link from "@/components/navigation/revenue-link";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 
 export default function NotFound() {

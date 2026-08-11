@@ -7,7 +7,7 @@ import { absoluteUrl, configuredSiteOrigin } from "@/lib/seo";
 import { serializeJsonLd } from "@/lib/site";
 import { slugify } from "@/lib/videos";
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/navigation/revenue-link";
 import { notFound } from "next/navigation";
 import { ReportIssue } from "@/components/reports/report-issue";
 import { watchSeo } from "@/lib/seo-templates";
