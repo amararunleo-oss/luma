@@ -12,6 +12,7 @@ import { notFound } from "next/navigation";
 import { ReportIssue } from "@/components/reports/report-issue";
 import { watchSeo } from "@/lib/seo-templates";
 import { watchDescription } from "@/lib/entity-context";
+import { videoUploadDate } from "@/lib/structured-data";
 
 export function generateStaticParams() {
   return videos.map((video) => ({ slug: video.slug }));
@@ -75,17 +76,18 @@ export default async function WatchPage({ params }: { params: Promise<{ slug: st
       {
         "@type": "VideoObject",
         "@id": `${pageUrl}#video`,
+        url: pageUrl,
         name: video.sceneTitle,
         description: enrichedDescription,
         thumbnailUrl: [absoluteUrl(origin, video.thumbnail)],
         embedUrl: video.embedUrl,
+        uploadDate: videoUploadDate(video),
         duration: isoDuration(video.duration),
         contentRating: "18+",
         isFamilyFriendly: false,
         actor: video.actresses.map((name) => ({ "@type": "Person", name, url: absoluteUrl(origin, `/actress/${slugify(name)}`) })),
         about: video.tags.map((name) => ({ "@type": "DefinedTerm", name, url: absoluteUrl(origin, `/tag/${slugify(name)}`) })),
         isPartOf: { "@type": video.type === "Movie" ? "Movie" : "TVSeries", name: video.workTitle, url: absoluteUrl(origin, workPath) },
-        ...(video.publishedAt ? { uploadDate: video.publishedAt } : {}),
       },
     ],
   };

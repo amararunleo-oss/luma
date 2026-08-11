@@ -1,5 +1,6 @@
 import { actresses as seedActresses, slugify, tags as seedTags, videos as seedVideos, years as seedYears, type Video, type VideoType } from "@/lib/videos";
 import { getD1Database } from "@/lib/cloudflare/d1-http";
+import { catalogCacheKey, withCatalogCache } from "@/lib/cache/upstash";
 
 export const DEFAULT_PAGE_SIZE = 24;
 
@@ -268,7 +269,7 @@ function fallback(options: QueryOptions): CatalogPage {
   return { items: items.slice((page - 1) * pageSize, page * pageSize), total, page, pageSize, database: false };
 }
 
-export async function listVideos(options: QueryOptions = {}): Promise<CatalogPage> {
+async function listVideosUncached(options: QueryOptions = {}): Promise<CatalogPage> {
   const db = database();
   if (!db) return fallback(options);
   const page = Math.max(1, options.page ?? 1);
@@ -307,7 +308,7 @@ export async function listVideos(options: QueryOptions = {}): Promise<CatalogPag
         v.thumbnail_key AS thumbnailKey,
         v.player_aspect_ratio AS playerAspectRatio,
         v.embed_id AS embedId,
-        v.published_at AS publishedAt,
+        COALESCE(v.published_at, v.first_seen_at) AS publishedAt,
         (SELECT group_concat(name, '|') FROM (SELECT a.name FROM video_actresses va JOIN actresses a ON a.id = va.actress_id WHERE va.video_id = v.id ORDER BY va.position)) AS actressNames,
         (SELECT group_concat(name, '|') FROM (SELECT t.name FROM video_tags vt JOIN tags t ON t.id = vt.tag_id WHERE vt.video_id = v.id ORDER BY t.name)) AS tagNames
       FROM videos v
@@ -323,7 +324,28 @@ export async function listVideos(options: QueryOptions = {}): Promise<CatalogPag
   }
 }
 
-export async function getVideoBySlug(slug: string) {
+export async function listVideos(options: QueryOptions = {}): Promise<CatalogPage> {
+  const normalized = {
+    page: Math.max(1, options.page ?? 1),
+    pageSize: Math.max(1, Math.min(48, options.pageSize ?? DEFAULT_PAGE_SIZE)),
+    sort: options.sort ?? null,
+    type: options.type ?? null,
+    actressSlug: options.actressSlug ?? null,
+    tagSlug: options.tagSlug ?? null,
+    workSlug: options.workSlug ?? null,
+    year: options.year ?? null,
+    search: searchTerm(options.search) || null,
+    order: options.order ?? null,
+    duration: options.duration ?? null,
+    minRating: options.minRating ?? null,
+  };
+  const ttl = normalized.search ? 15 * 60 : 6 * 60 * 60;
+  return withCatalogCache(catalogCacheKey("videos", normalized), ttl, () => listVideosUncached(options), {
+    shouldCache: (result) => result.database,
+  });
+}
+
+async function getVideoBySlugUncached(slug: string) {
   const db = database();
   if (!db) return seedVideos.find((video) => video.slug === slug);
   try {
@@ -334,7 +356,7 @@ export async function getVideoBySlug(slug: string) {
         v.type, v.rating, v.popularity_rank AS popularityRank, v.thumbnail_key AS thumbnailKey,
         v.player_aspect_ratio AS playerAspectRatio,
         v.embed_id AS embedId,
-        v.published_at AS publishedAt,
+        COALESCE(v.published_at, v.first_seen_at) AS publishedAt,
         (SELECT group_concat(name, '|') FROM (SELECT a.name FROM video_actresses va JOIN actresses a ON a.id = va.actress_id WHERE va.video_id = v.id ORDER BY va.position)) AS actressNames,
         (SELECT group_concat(name, '|') FROM (SELECT t.name FROM video_tags vt JOIN tags t ON t.id = vt.tag_id WHERE vt.video_id = v.id ORDER BY t.name)) AS tagNames
       FROM videos v LEFT JOIN works w ON w.id = v.work_id
@@ -344,6 +366,12 @@ export async function getVideoBySlug(slug: string) {
   } catch {
     return seedVideos.find((video) => video.slug === slug);
   }
+}
+
+export async function getVideoBySlug(slug: string) {
+  return withCatalogCache(catalogCacheKey("video", slug), 24 * 60 * 60, () => getVideoBySlugUncached(slug), {
+    shouldCache: (video) => Boolean(video),
+  });
 }
 
 function relatedScore(current: Video, candidate: Video) {
@@ -359,7 +387,7 @@ function relatedScore(current: Video, candidate: Video) {
     + Math.max(0, 8 - yearDistance);
 }
 
-export async function getRelatedVideos(video: Video, limit = 8): Promise<Video[]> {
+async function getRelatedVideosUncached(video: Video, limit = 8): Promise<Video[]> {
   const safeLimit = Math.max(1, Math.min(12, limit));
   const db = database();
   if (!db) {
@@ -391,7 +419,7 @@ export async function getRelatedVideos(video: Video, limit = 8): Promise<Video[]
         v.thumbnail_key AS thumbnailKey,
         v.player_aspect_ratio AS playerAspectRatio,
         v.embed_id AS embedId,
-        v.published_at AS publishedAt,
+        COALESCE(v.published_at, v.first_seen_at) AS publishedAt,
         (SELECT group_concat(name, '|') FROM (SELECT a.name FROM video_actresses va JOIN actresses a ON a.id = va.actress_id WHERE va.video_id = v.id ORDER BY va.position)) AS actressNames,
         (SELECT group_concat(name, '|') FROM (SELECT t.name FROM video_tags vt JOIN tags t ON t.id = vt.tag_id WHERE vt.video_id = v.id ORDER BY t.name)) AS tagNames,
         (
@@ -425,6 +453,11 @@ export async function getRelatedVideos(video: Video, limit = 8): Promise<Video[]
       .slice(0, safeLimit)
       .map((item) => item.candidate);
   }
+}
+
+export async function getRelatedVideos(video: Video, limit = 8): Promise<Video[]> {
+  const safeLimit = Math.max(1, Math.min(12, limit));
+  return withCatalogCache(catalogCacheKey("related", [video.id, safeLimit]), 24 * 60 * 60, () => getRelatedVideosUncached(video, safeLimit));
 }
 
 function seedWorks(type: VideoType): DirectoryEntry[] {
@@ -494,7 +527,7 @@ export async function getWorkBySlug(type: VideoType, slug: string): Promise<Dire
   return seedWorks(type).find((item) => item.slug === slug);
 }
 
-export async function listDirectory(options: DirectoryOptions): Promise<DirectoryPage> {
+async function listDirectoryUncached(options: DirectoryOptions): Promise<DirectoryPage> {
   const page = Math.max(1, options.page ?? 1);
   const pageSize = Math.max(12, Math.min(60, options.pageSize ?? 36));
   const letter = /^[A-Z]$/.test(options.letter ?? "") ? options.letter : undefined;
@@ -542,11 +575,25 @@ export async function listDirectory(options: DirectoryOptions): Promise<Director
   return { items: filtered.slice((page - 1) * pageSize, page * pageSize), total: filtered.length, page, pageSize, database: false };
 }
 
+export async function listDirectory(options: DirectoryOptions): Promise<DirectoryPage> {
+  const normalized = {
+    kind: options.kind,
+    letter: /^[A-Z]$/.test(options.letter ?? "") ? options.letter : null,
+    search: searchTerm(options.search) || null,
+    page: Math.max(1, options.page ?? 1),
+    pageSize: Math.max(12, Math.min(60, options.pageSize ?? 36)),
+  };
+  const ttl = normalized.search ? 30 * 60 : 12 * 60 * 60;
+  return withCatalogCache(catalogCacheKey("directory", normalized), ttl, () => listDirectoryUncached(options), {
+    shouldCache: (result) => result.database,
+  });
+}
+
 function emptySearch(query = ""): SearchSuggestions {
   return { query, videos: [], actresses: [], movies: [], tvShows: [] };
 }
 
-export async function searchCatalog(query: string, limitPerGroup = 5): Promise<SearchSuggestions> {
+async function searchCatalogUncached(query: string, limitPerGroup = 5): Promise<SearchSuggestions> {
   const term = searchTerm(query);
   if (term.length < 2) return emptySearch(term);
   const search = databaseSearchClause(term);
@@ -609,7 +656,14 @@ export async function searchCatalog(query: string, limitPerGroup = 5): Promise<S
   };
 }
 
-export async function getTaxonomy() {
+export async function searchCatalog(query: string, limitPerGroup = 5): Promise<SearchSuggestions> {
+  const term = searchTerm(query);
+  if (term.length < 2) return emptySearch(term);
+  const limit = Math.max(1, Math.min(8, limitPerGroup));
+  return withCatalogCache(catalogCacheKey("search", [term, limit]), 15 * 60, () => searchCatalogUncached(term, limit));
+}
+
+async function getTaxonomyUncached() {
   const db = database();
   if (db) {
     try {
@@ -624,6 +678,7 @@ export async function getTaxonomy() {
         actresses: actressResult.results ?? [],
         tags: tagResult.results ?? [],
         years: yearResult.results ?? [],
+        database: true,
       };
     } catch { /* use seed */ }
   }
@@ -631,7 +686,14 @@ export async function getTaxonomy() {
     actresses: await getActressDirectory(),
     tags: seedTags,
     years: seedYears.map((year) => ({ year, count: seedVideos.filter((video) => video.year === year).length })),
+    database: false,
   };
+}
+
+export async function getTaxonomy() {
+  return withCatalogCache("taxonomy", 24 * 60 * 60, getTaxonomyUncached, {
+    shouldCache: (result) => result.database,
+  });
 }
 
 export async function getCatalogSitemapCounts(): Promise<CatalogSitemapCounts> {

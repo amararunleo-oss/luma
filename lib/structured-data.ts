@@ -3,19 +3,37 @@ import type { Video } from "@/lib/videos";
 
 type CollectionKind = "actress" | "movie" | "tv" | "tag" | "year";
 
+const CATALOG_LAUNCH_DATE = "2026-08-08T00:00:00.000Z";
+
+export function videoUploadDate(video: Video) {
+  if (!video.publishedAt) return CATALOG_LAUNCH_DATE;
+  const raw = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(video.publishedAt)
+    ? `${video.publishedAt.replace(" ", "T")}Z`
+    : video.publishedAt;
+  const timestamp = Date.parse(raw);
+  return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : CATALOG_LAUNCH_DATE;
+}
+
 function videoList(origin: string, items: Video[]) {
-  return items.slice(0, 24).map((video, index) => ({
-    "@type": "ListItem",
-    position: index + 1,
-    url: absoluteUrl(origin, `/watch/${video.slug}`),
-    item: {
-      "@type": "VideoObject",
-      name: video.sceneTitle,
-      thumbnailUrl: [absoluteUrl(origin, video.thumbnail)],
-      contentRating: "18+",
-      isFamilyFriendly: false,
-    },
-  }));
+  return items.slice(0, 24).map((video, index) => {
+    const url = absoluteUrl(origin, `/watch/${video.slug}`);
+    return {
+      "@type": "ListItem",
+      position: index + 1,
+      url,
+      item: {
+        "@type": "WebPage",
+        "@id": url,
+        url,
+        name: video.sceneTitle,
+        description: video.description,
+        primaryImageOfPage: {
+          "@type": "ImageObject",
+          contentUrl: absoluteUrl(origin, video.thumbnail),
+        },
+      },
+    };
+  });
 }
 
 function entity(kind: CollectionKind, name: string, url: string, items: Video[]) {

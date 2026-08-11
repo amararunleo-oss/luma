@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AD_ROUTE_CHANGE_EVENT, currentAdRoute } from "./ad-route-sync";
+import { usePathname, useSearchParams } from "next/navigation";
 
 export type Placement = "catalog-top" | "sidebar" | "below-player" | "watch-outstream" | "desktop-sticky" | "catalog-instant" | "watch-slider" | "fullpage";
 type ZoneConfig = { zoneId?: string; className?: string; format: string; provider?: string };
@@ -83,6 +83,8 @@ const mobilePlacements: Partial<Record<Placement, ZoneConfig>> = {
 
 const adsEnabled = process.env.NEXT_PUBLIC_ADS_ENABLED === "true";
 const blockedAdTypes = process.env.NEXT_PUBLIC_EXOCLICK_BLOCK_AD_TYPES?.trim();
+const SERVE_COOLDOWN_MS = 1_000;
+const RETRY_AFTER_MS = 8_000;
 
 function validZone(config: { zoneId?: string; className?: string }) {
   return Boolean(config.zoneId && /^\d+$/.test(config.zoneId) && config.className && /^[a-z][a-z0-9_-]+$/i.test(config.className));
@@ -93,15 +95,20 @@ function serveAd() {
   window.AdProvider.push({ serve: {} });
 }
 
-const scheduledProviders = new Map<string, number>();
+let scheduledServe: number | null = null;
+let lastServeAt = 0;
 
-function scheduleServe(provider: string) {
-  if (scheduledProviders.has(provider)) return;
-  const frame = window.requestAnimationFrame(() => {
-    scheduledProviders.delete(provider);
-    serveAd();
-  });
-  scheduledProviders.set(provider, frame);
+function scheduleServe() {
+  if (scheduledServe !== null) return;
+  const wait = Math.max(0, SERVE_COOLDOWN_MS - (Date.now() - lastServeAt));
+  scheduledServe = window.setTimeout(() => {
+    window.requestAnimationFrame(() => {
+      scheduledServe = null;
+      if (!document.querySelector('ins[data-zoneid]:not([data-processed="true"])')) return;
+      lastServeAt = Date.now();
+      serveAd();
+    });
+  }, wait);
 }
 
 function loadProvider(provider: string, onReady: () => void, onError: () => void) {
@@ -109,12 +116,13 @@ function loadProvider(provider: string, onReady: () => void, onError: () => void
     .find((script) => script.src === provider);
   if (existing) {
     if (existing.dataset.ready === "true") onReady();
-    else if (existing.dataset.failed === "true") onError();
+    else if (existing.dataset.failed === "true") existing.remove();
     else {
       existing.addEventListener("load", onReady, { once: true });
       existing.addEventListener("error", onError, { once: true });
+      return;
     }
-    return;
+    if (existing.dataset.ready === "true") return;
   }
 
   const script = document.createElement("script");
@@ -133,12 +141,29 @@ function loadProvider(provider: string, onReady: () => void, onError: () => void
   document.head.appendChild(script);
 }
 
-export function AdSlot({ placement }: { placement: Placement }) {
+function createZone(className: string, zoneId: string) {
+  const zone = document.createElement("ins");
+  zone.className = className;
+  zone.dataset.zoneid = zoneId;
+  if (blockedAdTypes) zone.dataset.blockAdTypes = blockedAdTypes;
+  return zone;
+}
+
+function providerProcessed(host: HTMLElement, zone: HTMLElement) {
+  return zone.dataset.processed === "true" || !zone.isConnected || zone.childNodes.length > 0 || host.childNodes.length > 1;
+}
+
+export function AdSlot({ placement, active = true }: { placement: Placement; active?: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const zoneHostRef = useRef<HTMLDivElement>(null);
+  const servedOverlayZoneRef = useRef<string | null>(null);
   const [device, setDevice] = useState<Device | null>(null);
-  const [routeKey, setRouteKey] = useState<string | null>(null);
   const [visible, setVisible] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [status, setStatus] = useState<"idle" | "loading" | "loaded" | "empty">("idle");
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const routeKey = `${pathname}?${searchParams.toString()}`;
   const isMobile = device === "mobile";
   const config = device ? ((isMobile && mobilePlacements[placement]) || desktopPlacements[placement]) : null;
   const zoneId = config?.zoneId;
@@ -156,15 +181,8 @@ export function AdSlot({ placement }: { placement: Placement }) {
   }, []);
 
   useEffect(() => {
-    const syncRoute = () => setRouteKey(currentAdRoute());
-    syncRoute();
-    window.addEventListener(AD_ROUTE_CHANGE_EVENT, syncRoute);
-    return () => window.removeEventListener(AD_ROUTE_CHANGE_EVENT, syncRoute);
-  }, []);
-
-  useEffect(() => {
     const element = containerRef.current;
-    if (format === "overlay") return;
+    if (!active || format === "overlay") return;
     if (!element || visible) return;
     const observer = new IntersectionObserver(([entry]) => {
       if (!entry.isIntersecting) return;
@@ -173,32 +191,68 @@ export function AdSlot({ placement }: { placement: Placement }) {
     }, { rootMargin: "320px 0px" });
     observer.observe(element);
     return () => observer.disconnect();
-  }, [format, visible]);
+  }, [active, format, visible]);
 
   useEffect(() => {
-    if (!device || !routeKey || !readyToServe || !adsEnabled || !validZone({ zoneId, className })) return;
-    let active = true;
-    loadProvider(
-      provider,
-      () => { if (active) scheduleServe(provider); },
-      () => { if (active) setFailed(true); },
-    );
-    return () => { active = false; };
-  }, [className, device, provider, readyToServe, routeKey, zoneId]);
+    const host = zoneHostRef.current;
+    if (!host || !active || !device || !readyToServe || !adsEnabled || !validZone({ zoneId, className })) return;
+    if (format === "overlay" && servedOverlayZoneRef.current === zoneId) return;
+    let alive = true;
+    let retryTimer: number | undefined;
+    let emptyTimer: number | undefined;
+    let observer: MutationObserver | undefined;
 
-  if (!adsEnabled || (device && !validZone({ zoneId, className })) || failed) return null;
+    setFailed(false);
+    setStatus("loading");
+
+    const mountZone = (retry = false) => {
+      if (!alive || !className || !zoneId) return;
+      observer?.disconnect();
+      const zone = createZone(className, zoneId);
+      host.replaceChildren(zone);
+      if (format === "overlay") servedOverlayZoneRef.current = zoneId;
+      observer = new MutationObserver(() => {
+        if (alive && providerProcessed(host, zone)) setStatus("loaded");
+      });
+      observer.observe(host, { childList: true, subtree: true });
+      loadProvider(
+        provider,
+        () => { if (alive && zone.isConnected) scheduleServe(); },
+        () => {
+          if (!alive) return;
+          if (format === "overlay") servedOverlayZoneRef.current = null;
+          setFailed(true);
+        },
+      );
+
+      if (!retry) {
+        retryTimer = window.setTimeout(() => {
+          if (alive && !providerProcessed(host, zone)) mountZone(true);
+        }, RETRY_AFTER_MS);
+      } else {
+        emptyTimer = window.setTimeout(() => {
+          if (alive && !providerProcessed(host, zone)) setStatus("empty");
+        }, RETRY_AFTER_MS);
+      }
+    };
+
+    // Let the route commit finish before handing this DOM subtree to ExoClick.
+    const mountTimer = window.setTimeout(() => mountZone(), 0);
+    return () => {
+      alive = false;
+      window.clearTimeout(mountTimer);
+      if (retryTimer !== undefined) window.clearTimeout(retryTimer);
+      if (emptyTimer !== undefined) window.clearTimeout(emptyTimer);
+      observer?.disconnect();
+    };
+  }, [active, className, device, format, provider, readyToServe, routeKey, zoneId]);
+
+  if (!adsEnabled || (device && !validZone({ zoneId, className }))) return null;
 
   return (
-    <div className={`ad-slot ad-slot-${format}`} data-device={device || "pending"} data-placement={placement} ref={containerRef}>
+    <div className={`ad-slot ad-slot-${format}`} data-active={active} data-device={device || "pending"} data-placement={placement} data-state={failed ? "failed" : status} ref={containerRef}>
       {format !== "overlay" && <span>Advertisement</span>}
-      {device && routeKey && readyToServe && validZone({ zoneId, className }) && (
-        <ins
-          key={`${zoneId}:${routeKey}`}
-          className={className}
-          data-zoneid={zoneId}
-          data-block-ad-types={blockedAdTypes || undefined}
-        />
-      )}
+      <div className="ad-zone-host" ref={zoneHostRef} />
     </div>
   );
 }

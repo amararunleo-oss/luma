@@ -25,15 +25,15 @@ export function GlobalAdFormats() {
     return () => media.removeEventListener("change", update);
   }, []);
 
-  if (!device || !monetizedRoute) return null;
+  if (!device) return null;
 
   return (
     <>
-      {device === "desktop" && directoryRoutes.has(pathname) && <AdSlot placement="desktop-sticky" />}
-      {isCatalog && <AdSlot placement="catalog-instant" />}
-      {device === "desktop" && isWatch && <AdSlot placement="watch-slider" />}
+      {device === "desktop" && <AdSlot active={directoryRoutes.has(pathname)} placement="desktop-sticky" />}
+      <AdSlot active={isCatalog} placement="catalog-instant" />
+      {device === "desktop" && <AdSlot active={isWatch} placement="watch-slider" />}
       {device === "mobile" && <MobilePopunder />}
-      <AdSlot placement="fullpage" />
+      <AdSlot active={monetizedRoute} placement="fullpage" />
     </>
   );
 }

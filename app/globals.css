@@ -119,8 +119,10 @@ img { max-width: 100%; }
 .search-discovery-grid a:hover span { color:var(--accent); }
 .ad-slot { width:100%; margin:0 auto 30px; display:grid; place-items:center; overflow:hidden; color:var(--soft); text-align:center; }
 .ad-slot > span { margin-bottom:7px; font-size:8px; letter-spacing:.12em; text-transform:uppercase; }
-.ad-slot > ins { max-width:100%; display:block; margin-inline:auto; }
+.ad-zone-host { width:100%; max-width:100%; display:grid; place-items:center; }
+.ad-zone-host > ins { max-width:100%; display:block; margin-inline:auto; }
 .ad-slot > div, .ad-slot > div > div, .ad-slot iframe { max-width:100%; margin-inline:auto !important; }
+.ad-slot[data-active="false"], .ad-slot[data-state="failed"], .ad-slot[data-state="empty"] { display:none; }
 .ad-slot-leaderboard { min-height:106px; }
 .ad-slot-rectangle { min-height:278px; margin-bottom:30px; }
 .ad-slot-outstream { min-height:0; }

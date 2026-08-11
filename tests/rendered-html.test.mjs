@@ -184,6 +184,14 @@ test("publishes a cached sitemap index with bounded catalog chunks", async () =>
   assert.match(robots, /disallow: \["\/api\/", "\/admin\/", "\/search"\]/);
 });
 
+test("stores compressed catalog cache envelopes in Upstash as readable strings", async () => {
+  const cache = await source("lib/cache/upstash.ts");
+  assert.match(cache, /connection\.set\(fullKey, payload/);
+  assert.match(cache, /payload\.startsWith\("gz:"\)/);
+  assert.match(cache, /payload\.startsWith\("json:"\)/);
+  assert.doesNotMatch(cache, /connection\.set\(fullKey, envelope/);
+});
+
 test("generates page-specific SEO without indexing internal search results", async () => {
   const [templates, searchPage, watchPage, layout] = await Promise.all([
     source("lib/seo-templates.ts"),
@@ -235,6 +243,8 @@ test("adds deterministic entity context and structured data without AI calls", a
   assert.match(schema, /"CollectionPage"/);
   assert.match(schema, /"ItemList"/);
   assert.match(schema, /"Person"/);
+  assert.match(schema, /"WebPage"/);
+  assert.doesNotMatch(schema, /"VideoObject"/);
   assert.match(actressPage, /beforeGrid={<EntityContext/);
   assert.match(moviePage, /collectionSchema/);
   assert.match(watchPage, /isPartOf/);
@@ -242,10 +252,24 @@ test("adds deterministic entity context and structured data without AI calls", a
   assert.doesNotMatch(context, /openai|anthropic|generateText|chat\.completions/i);
 });
 
+test("publishes complete VideoObject data only on canonical watch pages", async () => {
+  const [watchPage, schema, repository] = await Promise.all([
+    source("app/watch/[slug]/page.tsx"),
+    source("lib/structured-data.ts"),
+    source("lib/catalog/repository.ts"),
+  ]);
+
+  assert.match(watchPage, /"@type": "VideoObject"/);
+  assert.match(watchPage, /description: enrichedDescription/);
+  assert.match(watchPage, /embedUrl: video\.embedUrl/);
+  assert.match(watchPage, /uploadDate: videoUploadDate\(video\)/);
+  assert.match(schema, /CATALOG_LAUNCH_DATE/);
+  assert.match(repository, /COALESCE\(v\.published_at, v\.first_seen_at\) AS publishedAt/);
+});
+
 test("keeps ExoClick disabled until complete validated zone configuration is supplied", async () => {
-  const [adSlot, adRouteSync, globalFormats, mobilePopunder, catalog, directory, layout, envExample, productionCheck, adCheck, adsTxtRoute, favicon, socialImage] = await Promise.all([
+  const [adSlot, globalFormats, mobilePopunder, catalog, directory, layout, envExample, productionCheck, adCheck, adsTxtRoute, favicon, socialImage] = await Promise.all([
     source("components/ads/ad-slot.tsx"),
-    source("components/ads/ad-route-sync.tsx"),
     source("components/ads/global-ad-formats.tsx"),
     source("components/ads/mobile-popunder.tsx"),
     source("components/catalog.tsx"),
@@ -275,17 +299,17 @@ test("keeps ExoClick disabled until complete validated zone configuration is sup
   assert.match(adSlot, /matchMedia\("\(max-width: 820px\)"\)/);
   assert.match(adSlot, /Device \| null/);
   assert.match(adSlot, /data-device=\{device \|\| "pending"\}/);
-  assert.match(adSlot, /device && routeKey && readyToServe && validZone/);
-  assert.match(adSlot, /AD_ROUTE_CHANGE_EVENT/);
-  assert.match(adSlot, /key={`\$\{zoneId\}:\$\{routeKey\}`}/);
-  assert.match(adSlot, /scheduleServe\(provider\)/);
-  assert.match(adRouteSync, /useSearchParams/);
-  assert.match(adRouteSync, /AD_ROUTE_CHANGE_EVENT/);
+  assert.match(adSlot, /usePathname/);
+  assert.match(adSlot, /useSearchParams/);
+  assert.match(adSlot, /data-processed="true"/);
+  assert.match(adSlot, /host\.replaceChildren\(zone\)/);
+  assert.match(adSlot, /scheduleServe\(\)/);
+  assert.match(adSlot, /servedOverlayZoneRef/);
   assert.doesNotMatch(adSlot, /data-ex_av/);
   assert.match(globalFormats, /directoryRoutes/);
   assert.match(globalFormats, /placement="catalog-instant"/);
   assert.match(globalFormats, /placement="watch-slider"/);
-  assert.match(globalFormats, /device === "desktop" && isWatch/);
+  assert.match(globalFormats, /device === "desktop" && <AdSlot active=\{isWatch\} placement="watch-slider"/);
   assert.match(globalFormats, /<MobilePopunder \/>/);
   assert.match(globalFormats, /placement="fullpage"/);
   assert.match(mobilePopunder, /NEXT_PUBLIC_EXOCLICK_MOBILE_POPUNDER_ZONE_ID/);
@@ -295,7 +319,7 @@ test("keeps ExoClick disabled until complete validated zone configuration is sup
   assert.match(catalog, /video-thumb actrexx-mobile-pop/);
   assert.match(directory, /placement="catalog-top"/);
   assert.match(layout, /<GlobalAdFormats \/>/);
-  assert.match(layout, /<AdRouteSync \/>/);
+  assert.doesNotMatch(layout, /AdRouteSync/);
   assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_BLOCK_AD_TYPES=/);
   assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_MOBILE_FPI_ZONE_ID=/);
   assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_MOBILE_INSTANT_ZONE_ID=/);
