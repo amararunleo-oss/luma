@@ -76,7 +76,7 @@ test("keeps mobile browse and filters outside fragile header layout behavior", a
   assert.match(css, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
 });
 
-test("serves R2 thumbnails through the Vercel-compatible S3 adapter with immutable caching", async () => {
+test("redirects thumbnail bytes directly to R2 instead of proxying them through Vercel", async () => {
   const [thumbnail, mediaRoute, storage] = await Promise.all([
     source("components/media/thumbnail.tsx"),
     source("app/media/[...key]/route.ts"),
@@ -84,10 +84,13 @@ test("serves R2 thumbnails through the Vercel-compatible S3 adapter with immutab
   ]);
 
   assert.match(thumbnail, /unoptimized/);
-  assert.match(mediaRoute, /if-none-match/);
+  assert.match(mediaRoute, /status: 307/);
+  assert.match(mediaRoute, /location/);
   assert.match(mediaRoute, /cdn-cache-control/);
-  assert.match(storage, /GetObjectCommand/);
-  assert.match(mediaRoute, /max-age=31536000, immutable/);
+  assert.match(mediaRoute, /signedR2ObjectUrl/);
+  assert.match(storage, /getSignedUrl/);
+  assert.doesNotMatch(mediaRoute, /getR2Object/);
+  assert.match(mediaRoute, /s-maxage=86400/);
 });
 
 test("does not expose dataset counts in public navigation and directories", async () => {
@@ -182,6 +185,8 @@ test("publishes a cached sitemap index with bounded catalog chunks", async () =>
   assert.match(sitemapHelpers, /works/);
   assert.match(robots, /sitemap\.xml/);
   assert.match(robots, /disallow: \["\/api\/", "\/admin\/", "\/search"\]/);
+  assert.match(robots, /Googlebot/);
+  assert.match(robots, /GPTBot/);
 });
 
 test("stores compressed catalog cache envelopes in Upstash as readable strings", async () => {
@@ -190,6 +195,24 @@ test("stores compressed catalog cache envelopes in Upstash as readable strings",
   assert.match(cache, /payload\.startsWith\("gz:"\)/);
   assert.match(cache, /payload\.startsWith\("json:"\)/);
   assert.doesNotMatch(cache, /connection\.set\(fullKey, envelope/);
+});
+
+test("protects Vercel compute with layered data caching and watch-page ISR", async () => {
+  const [repository, watchPage, layout, d1, upstash] = await Promise.all([
+    source("lib/catalog/repository.ts"),
+    source("app/watch/[slug]/page.tsx"),
+    source("app/layout.tsx"),
+    source("lib/cloudflare/d1-http.ts"),
+    source("lib/cache/upstash.ts"),
+  ]);
+  assert.match(repository, /unstable_cache/);
+  assert.match(repository, /getVideoBySlugDataCached/);
+  assert.match(repository, /listVideosDataCached/);
+  assert.match(watchPage, /export const revalidate = 86_400/);
+  assert.match(watchPage, /return \[\]/);
+  assert.doesNotMatch(layout, /requestOrigin/);
+  assert.doesNotMatch(d1, /cache: "no-store"/);
+  assert.match(upstash, /cache: "default"/);
 });
 
 test("generates page-specific SEO without indexing internal search results", async () => {

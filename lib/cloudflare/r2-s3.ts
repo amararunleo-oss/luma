@@ -1,4 +1,5 @@
 import { GetObjectCommand, HeadObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 type R2Config = {
   bucket: string;
@@ -68,6 +69,12 @@ export async function getR2Object(key: string) {
     if (status === 404) return null;
     throw error;
   }
+}
+
+export async function signedR2ObjectUrl(key: string, expiresIn = 7 * 24 * 60 * 60) {
+  const config = configuration();
+  if (!config) return null;
+  return getSignedUrl(config.client, new GetObjectCommand({ Bucket: config.bucket, Key: key }), { expiresIn });
 }
 
 export function hasR2Configuration() {

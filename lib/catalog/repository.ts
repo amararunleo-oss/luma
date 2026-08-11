@@ -1,6 +1,7 @@
 import { actresses as seedActresses, slugify, tags as seedTags, videos as seedVideos, years as seedYears, type Video, type VideoType } from "@/lib/videos";
 import { getD1Database } from "@/lib/cloudflare/d1-http";
 import { catalogCacheKey, withCatalogCache } from "@/lib/cache/upstash";
+import { unstable_cache } from "next/cache";
 
 export const DEFAULT_PAGE_SIZE = 24;
 
@@ -324,7 +325,7 @@ async function listVideosUncached(options: QueryOptions = {}): Promise<CatalogPa
   }
 }
 
-export async function listVideos(options: QueryOptions = {}): Promise<CatalogPage> {
+async function listVideosRemoteCached(options: QueryOptions = {}): Promise<CatalogPage> {
   const normalized = {
     page: Math.max(1, options.page ?? 1),
     pageSize: Math.max(1, Math.min(48, options.pageSize ?? DEFAULT_PAGE_SIZE)),
@@ -343,6 +344,13 @@ export async function listVideos(options: QueryOptions = {}): Promise<CatalogPag
   return withCatalogCache(catalogCacheKey("videos", normalized), ttl, () => listVideosUncached(options), {
     shouldCache: (result) => result.database,
   });
+}
+
+const listVideosDataCached = unstable_cache(listVideosRemoteCached, ["actrexx", "catalog", "videos", "v2"], { revalidate: 6 * 60 * 60 });
+const searchVideosDataCached = unstable_cache(listVideosRemoteCached, ["actrexx", "catalog", "video-search", "v2"], { revalidate: 15 * 60 });
+
+export async function listVideos(options: QueryOptions = {}): Promise<CatalogPage> {
+  return options.search?.trim() ? searchVideosDataCached(options) : listVideosDataCached(options);
 }
 
 async function getVideoBySlugUncached(slug: string) {
@@ -368,10 +376,16 @@ async function getVideoBySlugUncached(slug: string) {
   }
 }
 
-export async function getVideoBySlug(slug: string) {
+async function getVideoBySlugRemoteCached(slug: string) {
   return withCatalogCache(catalogCacheKey("video", slug), 24 * 60 * 60, () => getVideoBySlugUncached(slug), {
     shouldCache: (video) => Boolean(video),
   });
+}
+
+const getVideoBySlugDataCached = unstable_cache(getVideoBySlugRemoteCached, ["actrexx", "catalog", "video", "v2"], { revalidate: 7 * 24 * 60 * 60 });
+
+export async function getVideoBySlug(slug: string) {
+  return getVideoBySlugDataCached(slug);
 }
 
 function relatedScore(current: Video, candidate: Video) {
@@ -455,9 +469,15 @@ async function getRelatedVideosUncached(video: Video, limit = 8): Promise<Video[
   }
 }
 
-export async function getRelatedVideos(video: Video, limit = 8): Promise<Video[]> {
+async function getRelatedVideosRemoteCached(video: Video, limit = 8): Promise<Video[]> {
   const safeLimit = Math.max(1, Math.min(12, limit));
   return withCatalogCache(catalogCacheKey("related", [video.id, safeLimit]), 24 * 60 * 60, () => getRelatedVideosUncached(video, safeLimit));
+}
+
+const getRelatedVideosDataCached = unstable_cache(getRelatedVideosRemoteCached, ["actrexx", "catalog", "related", "v2"], { revalidate: 24 * 60 * 60 });
+
+export async function getRelatedVideos(video: Video, limit = 8): Promise<Video[]> {
+  return getRelatedVideosDataCached(video, Math.max(1, Math.min(12, limit)));
 }
 
 function seedWorks(type: VideoType): DirectoryEntry[] {
@@ -483,7 +503,7 @@ export async function getActressDirectory(letter?: string): Promise<DirectoryEnt
   return seedActresses.filter((item) => !normalized || item.name[0]?.toUpperCase() === normalized).map((item) => ({ ...item, initial: item.name[0]?.toUpperCase() ?? "#", description: `Movie and television scenes featuring ${item.name}.` }));
 }
 
-export async function getActressBySlug(slug: string): Promise<DirectoryEntry | undefined> {
+async function getActressBySlugUncached(slug: string): Promise<DirectoryEntry | undefined> {
   const db = database();
   if (db) {
     try {
@@ -493,6 +513,12 @@ export async function getActressBySlug(slug: string): Promise<DirectoryEntry | u
   }
   const actress = seedActresses.find((item) => item.slug === slug);
   return actress ? { ...actress, initial: actress.name[0]?.toUpperCase() ?? "#", description: `Movie and television scenes featuring ${actress.name}.` } : undefined;
+}
+
+const getActressBySlugDataCached = unstable_cache(getActressBySlugUncached, ["actrexx", "catalog", "actress", "v2"], { revalidate: 7 * 24 * 60 * 60 });
+
+export async function getActressBySlug(slug: string): Promise<DirectoryEntry | undefined> {
+  return getActressBySlugDataCached(slug);
 }
 
 export async function getWorkDirectory(type: VideoType, letter?: string): Promise<DirectoryEntry[]> {
@@ -510,7 +536,7 @@ export async function getWorkDirectory(type: VideoType, letter?: string): Promis
   return seedWorks(type).filter((item) => !normalized || item.initial === normalized);
 }
 
-export async function getWorkBySlug(type: VideoType, slug: string): Promise<DirectoryEntry | undefined> {
+async function getWorkBySlugUncached(type: VideoType, slug: string): Promise<DirectoryEntry | undefined> {
   const db = database();
   if (db) {
     try {
@@ -525,6 +551,12 @@ export async function getWorkBySlug(type: VideoType, slug: string): Promise<Dire
     } catch { /* use seed */ }
   }
   return seedWorks(type).find((item) => item.slug === slug);
+}
+
+const getWorkBySlugDataCached = unstable_cache(getWorkBySlugUncached, ["actrexx", "catalog", "work", "v2"], { revalidate: 7 * 24 * 60 * 60 });
+
+export async function getWorkBySlug(type: VideoType, slug: string): Promise<DirectoryEntry | undefined> {
+  return getWorkBySlugDataCached(type, slug);
 }
 
 async function listDirectoryUncached(options: DirectoryOptions): Promise<DirectoryPage> {
@@ -575,7 +607,7 @@ async function listDirectoryUncached(options: DirectoryOptions): Promise<Directo
   return { items: filtered.slice((page - 1) * pageSize, page * pageSize), total: filtered.length, page, pageSize, database: false };
 }
 
-export async function listDirectory(options: DirectoryOptions): Promise<DirectoryPage> {
+async function listDirectoryRemoteCached(options: DirectoryOptions): Promise<DirectoryPage> {
   const normalized = {
     kind: options.kind,
     letter: /^[A-Z]$/.test(options.letter ?? "") ? options.letter : null,
@@ -587,6 +619,12 @@ export async function listDirectory(options: DirectoryOptions): Promise<Director
   return withCatalogCache(catalogCacheKey("directory", normalized), ttl, () => listDirectoryUncached(options), {
     shouldCache: (result) => result.database,
   });
+}
+
+const listDirectoryDataCached = unstable_cache(listDirectoryRemoteCached, ["actrexx", "catalog", "directory", "v2"], { revalidate: 12 * 60 * 60 });
+
+export async function listDirectory(options: DirectoryOptions): Promise<DirectoryPage> {
+  return listDirectoryDataCached(options);
 }
 
 function emptySearch(query = ""): SearchSuggestions {
@@ -656,11 +694,17 @@ async function searchCatalogUncached(query: string, limitPerGroup = 5): Promise<
   };
 }
 
-export async function searchCatalog(query: string, limitPerGroup = 5): Promise<SearchSuggestions> {
+async function searchCatalogRemoteCached(query: string, limitPerGroup = 5): Promise<SearchSuggestions> {
   const term = searchTerm(query);
   if (term.length < 2) return emptySearch(term);
   const limit = Math.max(1, Math.min(8, limitPerGroup));
   return withCatalogCache(catalogCacheKey("search", [term, limit]), 15 * 60, () => searchCatalogUncached(term, limit));
+}
+
+const searchCatalogDataCached = unstable_cache(searchCatalogRemoteCached, ["actrexx", "catalog", "suggestions", "v2"], { revalidate: 15 * 60 });
+
+export async function searchCatalog(query: string, limitPerGroup = 5): Promise<SearchSuggestions> {
+  return searchCatalogDataCached(query, limitPerGroup);
 }
 
 async function getTaxonomyUncached() {
@@ -690,10 +734,16 @@ async function getTaxonomyUncached() {
   };
 }
 
-export async function getTaxonomy() {
+async function getTaxonomyRemoteCached() {
   return withCatalogCache("taxonomy", 24 * 60 * 60, getTaxonomyUncached, {
     shouldCache: (result) => result.database,
   });
+}
+
+const getTaxonomyDataCached = unstable_cache(getTaxonomyRemoteCached, ["actrexx", "catalog", "taxonomy", "v2"], { revalidate: 24 * 60 * 60 });
+
+export async function getTaxonomy() {
+  return getTaxonomyDataCached();
 }
 
 export async function getCatalogSitemapCounts(): Promise<CatalogSitemapCounts> {

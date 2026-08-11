@@ -3,9 +3,9 @@ import { AdSlot } from "@/components/ads/ad-slot";
 import { Sidebar, SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { PlayerGate } from "@/components/player/player-gate";
 import { getRelatedVideos, getVideoBySlug } from "@/lib/catalog/repository";
-import { absoluteUrl, requestOrigin } from "@/lib/seo";
+import { absoluteUrl, configuredSiteOrigin } from "@/lib/seo";
 import { serializeJsonLd } from "@/lib/site";
-import { slugify, videos } from "@/lib/videos";
+import { slugify } from "@/lib/videos";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -14,8 +14,11 @@ import { watchSeo } from "@/lib/seo-templates";
 import { watchDescription } from "@/lib/entity-context";
 import { videoUploadDate } from "@/lib/structured-data";
 
+export const revalidate = 86_400;
+export const dynamicParams = true;
+
 export function generateStaticParams() {
-  return videos.map((video) => ({ slug: video.slug }));
+  return [];
 }
 
 function isoDuration(duration: string) {
@@ -56,7 +59,7 @@ export default async function WatchPage({ params }: { params: Promise<{ slug: st
   const video = await getVideoBySlug(slug);
   if (!video) notFound();
 
-  const [related, origin] = await Promise.all([getRelatedVideos(video, 8), requestOrigin()]);
+  const [related, origin] = await Promise.all([getRelatedVideos(video, 8), configuredSiteOrigin()]);
   const typePath = video.type === "Movie" ? "/movie" : "/tv-show";
   const workPath = `${typePath}/title/${slugify(video.workTitle)}`;
   const pageUrl = absoluteUrl(origin, `/watch/${video.slug}`);

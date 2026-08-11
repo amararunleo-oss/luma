@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import { pageNumber } from "@/lib/videos";
 import { SITE } from "@/lib/site";
 
@@ -7,16 +6,6 @@ export function configuredSiteOrigin() {
   const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
   if (configured && configured !== "https://example.com") return new URL(configured).origin;
   return process.env.NODE_ENV === "production" ? "https://example.com" : "http://localhost:3000";
-}
-
-export async function requestOrigin() {
-  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  if (configured && configured !== "https://example.com") return new URL(configured).origin;
-
-  const requestHeaders = await headers();
-  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host") ?? "localhost:3000";
-  const protocol = requestHeaders.get("x-forwarded-proto") ?? (host.startsWith("localhost") || host.startsWith("127.0.0.1") ? "http" : "https");
-  return `${protocol}://${host}`;
 }
 
 export function absoluteUrl(origin: string, path: string) {

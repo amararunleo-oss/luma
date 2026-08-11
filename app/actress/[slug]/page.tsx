@@ -2,7 +2,7 @@ import { CatalogPage } from "@/components/catalog";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { getActressBySlug, listVideos } from "@/lib/catalog/repository";
 import { actresses, pageNumber } from "@/lib/videos";
-import { catalogMetadata, requestOrigin } from "@/lib/seo";
+import { catalogMetadata, configuredSiteOrigin } from "@/lib/seo";
 import { notFound } from "next/navigation";
 import { catalogFilterPath, filterQueryOptions, hasCatalogFilters, parseCatalogFilters, type CatalogFilterParams } from "@/lib/catalog/filters";
 import { actressSeo } from "@/lib/seo-templates";
@@ -28,7 +28,7 @@ export default async function ActressPage({ params, searchParams }: { params: Pr
   const filters = parseCatalogFilters(query);
   const [result, origin] = await Promise.all([
     listVideos({ actressSlug: slug, ...filterQueryOptions(filters), page: pageNumber(query.page), pageSize: 24 }),
-    requestOrigin(),
+    configuredSiteOrigin(),
   ]);
   const base = `/actress/${slug}`;
   const seo = actressSeo(actress.name, actress.count);

@@ -2,7 +2,7 @@ import { CatalogPage } from "@/components/catalog";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { getWorkBySlug, listVideos } from "@/lib/catalog/repository";
 import { pageNumber } from "@/lib/videos";
-import { catalogMetadata, requestOrigin } from "@/lib/seo";
+import { catalogMetadata, configuredSiteOrigin } from "@/lib/seo";
 import { notFound } from "next/navigation";
 import { catalogFilterPath, filterQueryOptions, hasCatalogFilters, parseCatalogFilters, type CatalogFilterParams } from "@/lib/catalog/filters";
 import { workSeo } from "@/lib/seo-templates";
@@ -22,7 +22,7 @@ export async function generateMetadata({ params, searchParams }: { params: Promi
 export default async function MovieTitlePage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<CatalogFilterParams> }) {
   const [{ slug }, query] = await Promise.all([params, searchParams]);
   const filters = { ...parseCatalogFilters(query), type: undefined };
-  const [work, result, origin] = await Promise.all([getWorkBySlug("Movie", slug), listVideos({ ...filterQueryOptions(filters), type: "Movie", workSlug: slug, page: pageNumber(query.page), pageSize: 24 }), requestOrigin()]);
+  const [work, result, origin] = await Promise.all([getWorkBySlug("Movie", slug), listVideos({ ...filterQueryOptions(filters), type: "Movie", workSlug: slug, page: pageNumber(query.page), pageSize: 24 }), configuredSiteOrigin()]);
   if (!work) notFound();
   const base = `/movie/title/${slug}`;
   const seo = workSeo("movie", work.name, work.count);

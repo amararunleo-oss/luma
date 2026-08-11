@@ -5,7 +5,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Suspense } from "react";
 import { NavigationProgress } from "@/components/navigation-progress";
 import { GlobalAdFormats } from "@/components/ads/global-ad-formats";
-import { absoluteUrl, requestOrigin } from "@/lib/seo";
+import { absoluteUrl, configuredSiteOrigin } from "@/lib/seo";
 import { serializeJsonLd, SITE } from "@/lib/site";
 import "./globals.css";
 
@@ -20,7 +20,7 @@ export const viewport: Viewport = {
 };
 
 export async function generateMetadata(): Promise<Metadata> {
-  const origin = await requestOrigin();
+  const origin = configuredSiteOrigin();
   const base = new URL(origin);
   const googleVerification = process.env.GOOGLE_SITE_VERIFICATION?.trim();
   const bingVerification = process.env.BING_SITE_VERIFICATION?.trim();
@@ -71,7 +71,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const origin = await requestOrigin();
+  const origin = configuredSiteOrigin();
   const websiteSchema = {
     "@context": "https://schema.org",
     "@graph": [

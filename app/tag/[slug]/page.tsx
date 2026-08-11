@@ -2,7 +2,7 @@ import { CatalogPage } from "@/components/catalog";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { getTaxonomy, listVideos } from "@/lib/catalog/repository";
 import { pageNumber, tags } from "@/lib/videos";
-import { catalogMetadata, requestOrigin } from "@/lib/seo";
+import { catalogMetadata, configuredSiteOrigin } from "@/lib/seo";
 import { notFound } from "next/navigation";
 import { catalogFilterPath, filterQueryOptions, hasCatalogFilters, parseCatalogFilters, type CatalogFilterParams } from "@/lib/catalog/filters";
 import { tagSeo } from "@/lib/seo-templates";
@@ -28,7 +28,7 @@ export default async function TagPage({ params, searchParams }: { params: Promis
   const filters = parseCatalogFilters(query);
   const [result, origin] = await Promise.all([
     listVideos({ tagSlug: slug, ...filterQueryOptions(filters), page: pageNumber(query.page), pageSize: 24 }),
-    requestOrigin(),
+    configuredSiteOrigin(),
   ]);
   const base = `/tag/${slug}`;
   const seo = tagSeo(tag.name, tag.count);

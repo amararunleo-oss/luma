@@ -37,7 +37,7 @@ function client() {
   if (redis !== undefined) return redis;
   const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
   const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
-  redis = url && token ? new Redis({ url, token }) : null;
+  redis = url && token ? new Redis({ url, token, cache: "default" }) : null;
   return redis;
 }
 

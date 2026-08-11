@@ -2,7 +2,7 @@ import { CatalogPage } from "@/components/catalog";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { listVideos } from "@/lib/catalog/repository";
 import { pageNumber, years } from "@/lib/videos";
-import { catalogMetadata, requestOrigin } from "@/lib/seo";
+import { catalogMetadata, configuredSiteOrigin } from "@/lib/seo";
 import { notFound } from "next/navigation";
 import { catalogFilterPath, filterQueryOptions, hasCatalogFilters, parseCatalogFilters, type CatalogFilterParams } from "@/lib/catalog/filters";
 import { yearSeo } from "@/lib/seo-templates";
@@ -26,7 +26,7 @@ export default async function YearPage({ params, searchParams }: { params: Promi
   const filters = { ...parseCatalogFilters(query), year: undefined };
   const [result, origin] = await Promise.all([
     listVideos({ ...filterQueryOptions(filters), year: parsed, page: pageNumber(query.page), pageSize: 24 }),
-    requestOrigin(),
+    configuredSiteOrigin(),
   ]);
   if (result.total === 0 && !hasCatalogFilters(filters)) notFound();
   const base = `/year/${year}`;

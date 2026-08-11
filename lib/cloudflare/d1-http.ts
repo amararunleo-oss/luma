@@ -54,7 +54,6 @@ async function execute<T>(config: D1Credentials, sql: string, params: unknown[])
         "content-type": "application/json",
       },
       body: JSON.stringify({ sql, params }),
-      cache: "no-store",
       signal: AbortSignal.timeout(15_000),
     },
   );
