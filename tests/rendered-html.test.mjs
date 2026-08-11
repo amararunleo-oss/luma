@@ -248,6 +248,9 @@ test("keeps ExoClick disabled until complete validated zone configuration is sup
   assert.match(adSlot, /NEXT_PUBLIC_EXOCLICK_CATALOG_MOBILE_ZONE_ID/);
   assert.match(adSlot, /NEXT_PUBLIC_EXOCLICK_OUTSTREAM_ZONE_ID/);
   assert.match(adSlot, /matchMedia\("\(max-width: 820px\)"\)/);
+  assert.match(adSlot, /Device \| null/);
+  assert.match(adSlot, /data-device=\{device \|\| "pending"\}/);
+  assert.match(adSlot, /device && visible && validZone/);
   assert.doesNotMatch(adSlot, /data-ex_av/);
   assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_BLOCK_AD_TYPES=/);
   assert.doesNotMatch(adSlot, /\|\| "101"/);

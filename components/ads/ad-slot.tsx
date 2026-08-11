@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 type Placement = "catalog-top" | "sidebar" | "below-player" | "watch-outstream";
 type ZoneConfig = { zoneId?: string; className?: string; format: string };
+type Device = "mobile" | "desktop";
 
 declare global {
   interface Window {
@@ -64,7 +65,10 @@ function loadProvider(onReady: () => void, onError: () => void) {
   if (existing) {
     if (existing.dataset.ready === "true") onReady();
     else if (existing.dataset.failed === "true") onError();
-    else existing.addEventListener("load", onReady, { once: true });
+    else {
+      existing.addEventListener("load", onReady, { once: true });
+      existing.addEventListener("error", onError, { once: true });
+    }
     return;
   }
 
@@ -86,15 +90,18 @@ function loadProvider(onReady: () => void, onError: () => void) {
 
 export function AdSlot({ placement }: { placement: Placement }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [isMobile, setIsMobile] = useState(false);
+  const [device, setDevice] = useState<Device | null>(null);
   const [visible, setVisible] = useState(false);
   const [failed, setFailed] = useState(false);
-  const config = (isMobile && mobilePlacements[placement]) || desktopPlacements[placement];
-  const { zoneId, className, format } = config;
+  const isMobile = device === "mobile";
+  const config = device ? ((isMobile && mobilePlacements[placement]) || desktopPlacements[placement]) : null;
+  const zoneId = config?.zoneId;
+  const className = config?.className;
+  const format = config?.format || desktopPlacements[placement].format;
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 820px)");
-    const updateDevice = () => setIsMobile(media.matches);
+    const updateDevice = () => setDevice(media.matches ? "mobile" : "desktop");
     updateDevice();
     media.addEventListener("change", updateDevice);
     return () => media.removeEventListener("change", updateDevice);
@@ -113,16 +120,16 @@ export function AdSlot({ placement }: { placement: Placement }) {
   }, [visible]);
 
   useEffect(() => {
-    if (!visible || !adsEnabled || !validZone({ zoneId, className })) return;
+    if (!device || !visible || !adsEnabled || !validZone({ zoneId, className })) return;
     loadProvider(serveAd, () => setFailed(true));
-  }, [className, visible, zoneId]);
+  }, [className, device, visible, zoneId]);
 
-  if (!adsEnabled || !validZone({ zoneId, className }) || failed) return null;
+  if (!adsEnabled || (device && !validZone({ zoneId, className })) || failed) return null;
 
   return (
-    <div className={`ad-slot ad-slot-${format}`} data-device={isMobile ? "mobile" : "desktop"} data-placement={placement} ref={containerRef}>
+    <div className={`ad-slot ad-slot-${format}`} data-device={device || "pending"} data-placement={placement} ref={containerRef}>
       <span>Advertisement</span>
-      {visible && (
+      {device && visible && validZone({ zoneId, className }) && (
         <ins
           key={zoneId}
           className={className}
