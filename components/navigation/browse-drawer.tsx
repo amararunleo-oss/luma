@@ -1,6 +1,6 @@
 "use client";
 
-import { Clapperboard, Film, Flame, Menu, Sparkles, Star, Tags, Tv, UserRound, X } from "lucide-react";
+import { ChevronDown, Clapperboard, Film, Flame, Menu, Sparkles, Star, Tags, Tv, UserRound, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -16,12 +16,27 @@ const sections = [
   { label: "TV shows", description: "Explore series A–Z", href: "/tv-show", icon: Tv },
 ] as const;
 
+type DrawerEntry = { name: string; slug: string };
+type DrawerTaxonomy = { actresses: DrawerEntry[]; tags: DrawerEntry[] };
+
 export function BrowseDrawer() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [taxonomy, setTaxonomy] = useState<DrawerTaxonomy | null>(null);
+  const [taxonomyLoading, setTaxonomyLoading] = useState(false);
+  const [taxonomyFailed, setTaxonomyFailed] = useState(false);
   const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
   const trigger = useRef<HTMLButtonElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
+
+  const toggleDrawer = () => {
+    const nextOpen = !open;
+    if (nextOpen && !taxonomy) {
+      setTaxonomyLoading(true);
+      setTaxonomyFailed(false);
+    }
+    setOpen(nextOpen);
+  };
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => setOpen(false));
@@ -60,6 +75,24 @@ export function BrowseDrawer() {
     };
   }, [open]);
 
+  useEffect(() => {
+    if (!open || taxonomy) return;
+    const controller = new AbortController();
+    fetch("/api/navigation", { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error("Navigation data unavailable");
+        return response.json() as Promise<DrawerTaxonomy>;
+      })
+      .then((data) => setTaxonomy(data))
+      .catch((error: unknown) => {
+        if (!(error instanceof DOMException && error.name === "AbortError")) setTaxonomyFailed(true);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setTaxonomyLoading(false);
+      });
+    return () => controller.abort();
+  }, [open, taxonomy]);
+
   const drawer = (
     <div className={`drawer-layer${open ? " open" : ""}`} aria-hidden={!open}>
       <button className="drawer-backdrop" type="button" aria-label="Close browse menu" tabIndex={open ? 0 : -1} onClick={() => setOpen(false)} />
@@ -70,6 +103,25 @@ export function BrowseDrawer() {
             const Icon = item.icon;
             return <Link className={pathname === item.href ? "active" : ""} href={item.href} key={item.href} onClick={() => setOpen(false)}><span><Icon size={18} aria-hidden="true" /></span><div><strong>{item.label}</strong><small>{item.description}</small></div></Link>;
           })}
+          <div className="drawer-taxonomy">
+            <details>
+              <summary><span><UserRound size={15} aria-hidden="true" />Popular actresses</span><ChevronDown size={15} aria-hidden="true" /></summary>
+              <div className="drawer-taxonomy-links">
+                {taxonomyLoading && <p className="drawer-taxonomy-status">Loading actresses…</p>}
+                {taxonomy?.actresses.map((item) => <Link href={`/actress/${item.slug}`} key={item.slug} onClick={() => setOpen(false)}>{item.name}</Link>)}
+                {taxonomyFailed && <p className="drawer-taxonomy-status">Actresses are temporarily unavailable.</p>}
+                <Link className="drawer-view-all" href="/actress" onClick={() => setOpen(false)}>View all actresses</Link>
+              </div>
+            </details>
+            <details>
+              <summary><span><Tags size={15} aria-hidden="true" />Popular tags</span><ChevronDown size={15} aria-hidden="true" /></summary>
+              <div className="drawer-tag-links">
+                {taxonomyLoading && <p className="drawer-taxonomy-status">Loading tags…</p>}
+                {taxonomy?.tags.map((item) => <Link href={`/tag/${item.slug}`} key={item.slug} onClick={() => setOpen(false)}>#{item.name}</Link>)}
+                {taxonomyFailed && <p className="drawer-taxonomy-status">Tags are temporarily unavailable.</p>}
+              </div>
+            </details>
+          </div>
         </nav>
         <footer><Tags size={15} aria-hidden="true" /><p>Search by actress, movie, TV show or scene.</p></footer>
       </aside>
@@ -78,7 +130,7 @@ export function BrowseDrawer() {
 
   return (
     <>
-      <button ref={trigger} className="browse-trigger" type="button" aria-label="Open browse menu" aria-expanded={open} aria-controls="browse-drawer" onClick={() => setOpen((current) => !current)}>
+      <button ref={trigger} className="browse-trigger" type="button" aria-label="Open browse menu" aria-expanded={open} aria-controls="browse-drawer" onClick={toggleDrawer}>
         <Menu size={19} aria-hidden="true" /><span>Browse</span>
       </button>
       {mounted && createPortal(drawer, document.body)}

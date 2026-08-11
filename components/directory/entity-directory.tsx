@@ -4,6 +4,7 @@ import { AlphabetFilter } from "./alphabet-filter";
 import { DirectorySearch } from "./directory-search";
 import { Pagination } from "@/components/catalog";
 import Link from "next/link";
+import { AdSlot } from "@/components/ads/ad-slot";
 
 export function EntityDirectory({ title, description, entries, total, page, pageSize, basePath, activeLetter, query, entryPath, searchLabel }: {
   title: string;
@@ -30,6 +31,7 @@ export function EntityDirectory({ title, description, entries, total, page, page
           <DirectorySearch key={`${basePath}:${activeLetter ?? "all"}`} basePath={basePath} activeLetter={activeLetter} initialQuery={query} label={searchLabel} />
           <AlphabetFilter basePath={basePath} active={activeLetter} query={query} />
         </div>
+        <div className="directory-ad"><AdSlot placement="catalog-top" /></div>
         {entries.length > 0 ? (
           <div className="name-directory entity-directory">
             {entries.map((entry) => <Link href={`${entryPath}/${entry.slug}`} key={entry.slug}><span><strong>{entry.name}</strong></span></Link>)}

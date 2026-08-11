@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fffdfb"/>
+      <stop offset="1" stop-color="#f5eef1"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ed2458"/>
+      <stop offset="1" stop-color="#ff6c91"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect x="52" y="52" width="1096" height="526" rx="28" fill="#fff" stroke="#e7dfe3"/>
+  <rect x="52" y="52" width="328" height="526" rx="28" fill="#171518"/>
+  <rect x="352" y="52" width="28" height="526" fill="#171518"/>
+  <g transform="translate(122 142)">
+    <ellipse cx="63" cy="67" rx="42" ry="59" transform="rotate(28 63 67)" fill="#ed2458"/>
+    <ellipse cx="108" cy="106" rx="42" ry="59" transform="rotate(28 108 106)" fill="#ff5f86"/>
+    <circle cx="136" cy="38" r="14" fill="#fff"/>
+  </g>
+  <text x="104" y="386" fill="#fff" font-family="Arial, Helvetica, sans-serif" font-size="54" font-weight="800" letter-spacing="1">ACTREXX</text>
+  <text x="104" y="430" fill="#ffb0c5" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="700" letter-spacing="4">ADULTS 18+</text>
+  <text x="450" y="214" fill="#171518" font-family="Georgia, 'Times New Roman', serif" font-size="63">Celebrity scenes</text>
+  <text x="450" y="286" fill="#171518" font-family="Georgia, 'Times New Roman', serif" font-size="63">from screen titles</text>
+  <line x1="450" y1="348" x2="1074" y2="348" stroke="#ded4d9"/>
+  <text x="450" y="405" fill="#6c6369" font-family="Arial, Helvetica, sans-serif" font-size="22">Explore performers, movies and television scenes.</text>
+  <g transform="translate(450 468)">
+    <rect width="168" height="48" rx="24" fill="url(#accent)"/>
+    <text x="84" y="31" text-anchor="middle" fill="#fff" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700" letter-spacing="1">WATCH NOW</text>
+  </g>
+</svg>

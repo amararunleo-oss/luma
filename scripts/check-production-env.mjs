@@ -59,6 +59,22 @@ if (process.env.NEXT_PUBLIC_ADS_ENABLED === "true") {
     process.exit(1);
   }
 
+  const optionalPlacements = ["STICKY", "INSTANT", "VIDEO_SLIDER", "DESKTOP_FPI", "MOBILE_FPI"];
+  for (const placement of optionalPlacements) {
+    const zoneKey = `NEXT_PUBLIC_EXOCLICK_${placement}_ZONE_ID`;
+    const classKey = `NEXT_PUBLIC_EXOCLICK_${placement}_CLASS`;
+    const zone = process.env[zoneKey]?.trim();
+    const className = process.env[classKey]?.trim();
+    if (Boolean(zone) !== Boolean(className)) {
+      console.error(`Optional advertising placement ${placement} must include both ${zoneKey} and ${classKey}.`);
+      process.exit(1);
+    }
+    if ((zone && !/^\d+$/.test(zone)) || (className && !/^[a-z][a-z0-9_-]+$/i.test(className))) {
+      console.error(`Optional advertising placement ${placement} has an invalid zone ID or async class.`);
+      process.exit(1);
+    }
+  }
+
   if (!process.env.ADS_TXT?.trim()) {
     console.warn("ADS_TXT is not configured; /ads.txt will return 404 until authorized seller records are supplied.");
   }

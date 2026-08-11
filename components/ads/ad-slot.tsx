@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
-type Placement = "catalog-top" | "sidebar" | "below-player" | "watch-outstream";
-type ZoneConfig = { zoneId?: string; className?: string; format: string };
+export type Placement = "catalog-top" | "sidebar" | "below-player" | "watch-outstream" | "desktop-sticky" | "catalog-instant" | "watch-slider" | "fullpage";
+type ZoneConfig = { zoneId?: string; className?: string; format: string; provider?: string };
 type Device = "mobile" | "desktop";
 
 declare global {
@@ -33,6 +33,27 @@ const desktopPlacements: Record<Placement, ZoneConfig> = {
     className: process.env.NEXT_PUBLIC_EXOCLICK_OUTSTREAM_CLASS,
     format: "outstream",
   },
+  "desktop-sticky": {
+    zoneId: process.env.NEXT_PUBLIC_EXOCLICK_STICKY_ZONE_ID,
+    className: process.env.NEXT_PUBLIC_EXOCLICK_STICKY_CLASS,
+    format: "overlay",
+  },
+  "catalog-instant": {
+    zoneId: process.env.NEXT_PUBLIC_EXOCLICK_INSTANT_ZONE_ID,
+    className: process.env.NEXT_PUBLIC_EXOCLICK_INSTANT_CLASS,
+    format: "overlay",
+  },
+  "watch-slider": {
+    zoneId: process.env.NEXT_PUBLIC_EXOCLICK_VIDEO_SLIDER_ZONE_ID,
+    className: process.env.NEXT_PUBLIC_EXOCLICK_VIDEO_SLIDER_CLASS,
+    format: "overlay",
+  },
+  fullpage: {
+    zoneId: process.env.NEXT_PUBLIC_EXOCLICK_DESKTOP_FPI_ZONE_ID,
+    className: process.env.NEXT_PUBLIC_EXOCLICK_DESKTOP_FPI_CLASS,
+    format: "overlay",
+    provider: "https://a.pemsrv.com/ad-provider.js",
+  },
 };
 
 const mobilePlacements: Partial<Record<Placement, ZoneConfig>> = {
@@ -45,6 +66,12 @@ const mobilePlacements: Partial<Record<Placement, ZoneConfig>> = {
     zoneId: process.env.NEXT_PUBLIC_EXOCLICK_PLAYER_MOBILE_ZONE_ID,
     className: process.env.NEXT_PUBLIC_EXOCLICK_PLAYER_MOBILE_CLASS,
     format: "leaderboard",
+  },
+  fullpage: {
+    zoneId: process.env.NEXT_PUBLIC_EXOCLICK_MOBILE_FPI_ZONE_ID,
+    className: process.env.NEXT_PUBLIC_EXOCLICK_MOBILE_FPI_CLASS,
+    format: "overlay",
+    provider: "https://a.pemsrv.com/ad-provider.js",
   },
 };
 
@@ -60,8 +87,9 @@ function serveAd() {
   window.AdProvider.push({ serve: {} });
 }
 
-function loadProvider(onReady: () => void, onError: () => void) {
-  const existing = document.querySelector<HTMLScriptElement>('script[data-actrexx-ad-provider="true"]');
+function loadProvider(provider: string, onReady: () => void, onError: () => void) {
+  const existing = [...document.querySelectorAll<HTMLScriptElement>("script[data-actrexx-ad-provider]")]
+    .find((script) => script.src === provider);
   if (existing) {
     if (existing.dataset.ready === "true") onReady();
     else if (existing.dataset.failed === "true") onError();
@@ -75,8 +103,8 @@ function loadProvider(onReady: () => void, onError: () => void) {
   const script = document.createElement("script");
   script.async = true;
   script.type = "application/javascript";
-  script.src = "https://a.magsrv.com/ad-provider.js";
-  script.dataset.actrexxAdProvider = "true";
+  script.src = provider;
+  script.dataset.actrexxAdProvider = provider.includes("pemsrv") ? "pemsrv" : "magsrv";
   script.addEventListener("load", () => {
     script.dataset.ready = "true";
     onReady();
@@ -98,6 +126,8 @@ export function AdSlot({ placement }: { placement: Placement }) {
   const zoneId = config?.zoneId;
   const className = config?.className;
   const format = config?.format || desktopPlacements[placement].format;
+  const provider = config?.provider || "https://a.magsrv.com/ad-provider.js";
+  const readyToServe = format === "overlay" || visible;
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 820px)");
@@ -109,6 +139,7 @@ export function AdSlot({ placement }: { placement: Placement }) {
 
   useEffect(() => {
     const element = containerRef.current;
+    if (format === "overlay") return;
     if (!element || visible) return;
     const observer = new IntersectionObserver(([entry]) => {
       if (!entry.isIntersecting) return;
@@ -117,19 +148,19 @@ export function AdSlot({ placement }: { placement: Placement }) {
     }, { rootMargin: "320px 0px" });
     observer.observe(element);
     return () => observer.disconnect();
-  }, [visible]);
+  }, [format, visible]);
 
   useEffect(() => {
-    if (!device || !visible || !adsEnabled || !validZone({ zoneId, className })) return;
-    loadProvider(serveAd, () => setFailed(true));
-  }, [className, device, visible, zoneId]);
+    if (!device || !readyToServe || !adsEnabled || !validZone({ zoneId, className })) return;
+    loadProvider(provider, serveAd, () => setFailed(true));
+  }, [className, device, provider, readyToServe, zoneId]);
 
   if (!adsEnabled || (device && !validZone({ zoneId, className })) || failed) return null;
 
   return (
     <div className={`ad-slot ad-slot-${format}`} data-device={device || "pending"} data-placement={placement} ref={containerRef}>
-      <span>Advertisement</span>
-      {device && visible && validZone({ zoneId, className }) && (
+      {format !== "overlay" && <span>Advertisement</span>}
+      {device && readyToServe && validZone({ zoneId, className }) && (
         <ins
           key={zoneId}
           className={className}

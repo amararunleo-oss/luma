@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Suspense } from "react";
 import { NavigationProgress } from "@/components/navigation-progress";
+import { GlobalAdFormats } from "@/components/ads/global-ad-formats";
 import { absoluteUrl, requestOrigin } from "@/lib/seo";
 import { serializeJsonLd, SITE } from "@/lib/site";
 import "./globals.css";
@@ -90,6 +91,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <Suspense fallback={null}><NavigationProgress /></Suspense>
+        <GlobalAdFormats />
         {children}
         <Analytics />
         <SpeedInsights />

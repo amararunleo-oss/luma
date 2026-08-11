@@ -51,18 +51,28 @@ test("keeps full catalog ranking imports resumable and database sync authoritati
 });
 
 test("keeps mobile browse and filters outside fragile header layout behavior", async () => {
-  const [drawer, filters, css] = await Promise.all([
+  const [drawer, navigationApi, filters, css] = await Promise.all([
     source("components/navigation/browse-drawer.tsx"),
+    source("app/api/navigation/route.ts"),
     source("components/catalog-filters.tsx"),
     source("app/globals.css"),
   ]);
 
   assert.match(drawer, /createPortal\(drawer, document\.body\)/);
   assert.match(drawer, /aria-expanded=\{open\}/);
+  assert.match(drawer, /Popular actresses/);
+  assert.match(drawer, /Popular tags/);
+  assert.match(drawer, /<details>/);
+  assert.match(drawer, /fetch\("\/api\/navigation"/);
+  assert.match(navigationApi, /s-maxage=3600/);
+  assert.match(navigationApi, /actresses\.slice\(0, 10\)/);
+  assert.match(navigationApi, /tags\.slice\(0, 18\)/);
   assert.match(filters, /mobile-filter-backdrop/);
   assert.match(filters, /aria-controls="catalog-filter-form"/);
   assert.match(css, /height:100dvh/);
   assert.match(css, /translate3d/);
+  assert.match(css, /\.drawer-taxonomy-links \{ max-height:224px/);
+  assert.match(css, /\.browse-drawer nav > a/);
   assert.match(css, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
 });
 
@@ -233,12 +243,17 @@ test("adds deterministic entity context and structured data without AI calls", a
 });
 
 test("keeps ExoClick disabled until complete validated zone configuration is supplied", async () => {
-  const [adSlot, envExample, productionCheck, adCheck, adsTxtRoute] = await Promise.all([
+  const [adSlot, globalFormats, directory, layout, envExample, productionCheck, adCheck, adsTxtRoute, favicon, socialImage] = await Promise.all([
     source("components/ads/ad-slot.tsx"),
+    source("components/ads/global-ad-formats.tsx"),
+    source("components/directory/entity-directory.tsx"),
+    source("app/layout.tsx"),
     source(".env.example"),
     source("scripts/check-production-env.mjs"),
     source("scripts/ads/check-exoclick.mjs"),
     source("app/ads.txt/route.ts"),
+    source("public/favicon.svg"),
+    source("public/og-source.svg"),
   ]);
 
   assert.match(adSlot, /NEXT_PUBLIC_ADS_ENABLED === "true"/);
@@ -247,16 +262,33 @@ test("keeps ExoClick disabled until complete validated zone configuration is sup
   assert.match(adSlot, /validZone/);
   assert.match(adSlot, /NEXT_PUBLIC_EXOCLICK_CATALOG_MOBILE_ZONE_ID/);
   assert.match(adSlot, /NEXT_PUBLIC_EXOCLICK_OUTSTREAM_ZONE_ID/);
+  assert.match(adSlot, /NEXT_PUBLIC_EXOCLICK_STICKY_ZONE_ID/);
+  assert.match(adSlot, /NEXT_PUBLIC_EXOCLICK_INSTANT_ZONE_ID/);
+  assert.match(adSlot, /NEXT_PUBLIC_EXOCLICK_VIDEO_SLIDER_ZONE_ID/);
+  assert.match(adSlot, /NEXT_PUBLIC_EXOCLICK_DESKTOP_FPI_ZONE_ID/);
+  assert.match(adSlot, /NEXT_PUBLIC_EXOCLICK_MOBILE_FPI_ZONE_ID/);
+  assert.match(adSlot, /a\.pemsrv\.com\/ad-provider\.js/);
   assert.match(adSlot, /matchMedia\("\(max-width: 820px\)"\)/);
   assert.match(adSlot, /Device \| null/);
   assert.match(adSlot, /data-device=\{device \|\| "pending"\}/);
-  assert.match(adSlot, /device && visible && validZone/);
+  assert.match(adSlot, /device && readyToServe && validZone/);
   assert.doesNotMatch(adSlot, /data-ex_av/);
+  assert.match(globalFormats, /directoryRoutes/);
+  assert.match(globalFormats, /placement="catalog-instant"/);
+  assert.match(globalFormats, /placement="watch-slider"/);
+  assert.match(globalFormats, /placement="fullpage"/);
+  assert.match(directory, /placement="catalog-top"/);
+  assert.match(layout, /<GlobalAdFormats \/>/);
   assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_BLOCK_AD_TYPES=/);
+  assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_MOBILE_FPI_ZONE_ID=/);
   assert.doesNotMatch(adSlot, /\|\| "101"/);
   assert.match(productionCheck, /Advertising is enabled but configuration is incomplete/);
+  assert.match(productionCheck, /optionalPlacements/);
   assert.match(adCheck, /ADS_TXT is missing/);
   assert.match(adsTxtRoute, /status: 404/);
+  assert.doesNotMatch(favicon, /M27 18v27h17|LUMA/i);
+  assert.match(socialImage, /ACTREXX/);
+  assert.doesNotMatch(socialImage, /LUMA/i);
   const watchPage = await source("app/watch/[slug]/page.tsx");
   const chrome = await source("components/site-chrome.tsx");
   assert.match(watchPage, /placement="below-player"/);
