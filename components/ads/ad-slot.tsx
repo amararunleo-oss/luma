@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { AD_ROUTE_CHANGE_EVENT, currentAdRoute } from "./ad-route-sync";
 
 export type Placement = "catalog-top" | "sidebar" | "below-player" | "watch-outstream" | "desktop-sticky" | "catalog-instant" | "watch-slider" | "fullpage";
 type ZoneConfig = { zoneId?: string; className?: string; format: string; provider?: string };
@@ -92,6 +93,17 @@ function serveAd() {
   window.AdProvider.push({ serve: {} });
 }
 
+const scheduledProviders = new Map<string, number>();
+
+function scheduleServe(provider: string) {
+  if (scheduledProviders.has(provider)) return;
+  const frame = window.requestAnimationFrame(() => {
+    scheduledProviders.delete(provider);
+    serveAd();
+  });
+  scheduledProviders.set(provider, frame);
+}
+
 function loadProvider(provider: string, onReady: () => void, onError: () => void) {
   const existing = [...document.querySelectorAll<HTMLScriptElement>("script[data-actrexx-ad-provider]")]
     .find((script) => script.src === provider);
@@ -124,6 +136,7 @@ function loadProvider(provider: string, onReady: () => void, onError: () => void
 export function AdSlot({ placement }: { placement: Placement }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [device, setDevice] = useState<Device | null>(null);
+  const [routeKey, setRouteKey] = useState<string | null>(null);
   const [visible, setVisible] = useState(false);
   const [failed, setFailed] = useState(false);
   const isMobile = device === "mobile";
@@ -143,6 +156,13 @@ export function AdSlot({ placement }: { placement: Placement }) {
   }, []);
 
   useEffect(() => {
+    const syncRoute = () => setRouteKey(currentAdRoute());
+    syncRoute();
+    window.addEventListener(AD_ROUTE_CHANGE_EVENT, syncRoute);
+    return () => window.removeEventListener(AD_ROUTE_CHANGE_EVENT, syncRoute);
+  }, []);
+
+  useEffect(() => {
     const element = containerRef.current;
     if (format === "overlay") return;
     if (!element || visible) return;
@@ -156,18 +176,24 @@ export function AdSlot({ placement }: { placement: Placement }) {
   }, [format, visible]);
 
   useEffect(() => {
-    if (!device || !readyToServe || !adsEnabled || !validZone({ zoneId, className })) return;
-    loadProvider(provider, serveAd, () => setFailed(true));
-  }, [className, device, provider, readyToServe, zoneId]);
+    if (!device || !routeKey || !readyToServe || !adsEnabled || !validZone({ zoneId, className })) return;
+    let active = true;
+    loadProvider(
+      provider,
+      () => { if (active) scheduleServe(provider); },
+      () => { if (active) setFailed(true); },
+    );
+    return () => { active = false; };
+  }, [className, device, provider, readyToServe, routeKey, zoneId]);
 
   if (!adsEnabled || (device && !validZone({ zoneId, className })) || failed) return null;
 
   return (
     <div className={`ad-slot ad-slot-${format}`} data-device={device || "pending"} data-placement={placement} ref={containerRef}>
       {format !== "overlay" && <span>Advertisement</span>}
-      {device && readyToServe && validZone({ zoneId, className }) && (
+      {device && routeKey && readyToServe && validZone({ zoneId, className }) && (
         <ins
-          key={zoneId}
+          key={`${zoneId}:${routeKey}`}
           className={className}
           data-zoneid={zoneId}
           data-block-ad-types={blockedAdTypes || undefined}

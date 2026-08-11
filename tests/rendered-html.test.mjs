@@ -243,8 +243,9 @@ test("adds deterministic entity context and structured data without AI calls", a
 });
 
 test("keeps ExoClick disabled until complete validated zone configuration is supplied", async () => {
-  const [adSlot, globalFormats, mobilePopunder, catalog, directory, layout, envExample, productionCheck, adCheck, adsTxtRoute, favicon, socialImage] = await Promise.all([
+  const [adSlot, adRouteSync, globalFormats, mobilePopunder, catalog, directory, layout, envExample, productionCheck, adCheck, adsTxtRoute, favicon, socialImage] = await Promise.all([
     source("components/ads/ad-slot.tsx"),
+    source("components/ads/ad-route-sync.tsx"),
     source("components/ads/global-ad-formats.tsx"),
     source("components/ads/mobile-popunder.tsx"),
     source("components/catalog.tsx"),
@@ -274,7 +275,12 @@ test("keeps ExoClick disabled until complete validated zone configuration is sup
   assert.match(adSlot, /matchMedia\("\(max-width: 820px\)"\)/);
   assert.match(adSlot, /Device \| null/);
   assert.match(adSlot, /data-device=\{device \|\| "pending"\}/);
-  assert.match(adSlot, /device && readyToServe && validZone/);
+  assert.match(adSlot, /device && routeKey && readyToServe && validZone/);
+  assert.match(adSlot, /AD_ROUTE_CHANGE_EVENT/);
+  assert.match(adSlot, /key={`\$\{zoneId\}:\$\{routeKey\}`}/);
+  assert.match(adSlot, /scheduleServe\(provider\)/);
+  assert.match(adRouteSync, /useSearchParams/);
+  assert.match(adRouteSync, /AD_ROUTE_CHANGE_EVENT/);
   assert.doesNotMatch(adSlot, /data-ex_av/);
   assert.match(globalFormats, /directoryRoutes/);
   assert.match(globalFormats, /placement="catalog-instant"/);
@@ -289,6 +295,7 @@ test("keeps ExoClick disabled until complete validated zone configuration is sup
   assert.match(catalog, /video-thumb actrexx-mobile-pop/);
   assert.match(directory, /placement="catalog-top"/);
   assert.match(layout, /<GlobalAdFormats \/>/);
+  assert.match(layout, /<AdRouteSync \/>/);
   assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_BLOCK_AD_TYPES=/);
   assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_MOBILE_FPI_ZONE_ID=/);
   assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_MOBILE_INSTANT_ZONE_ID=/);
