@@ -67,6 +67,11 @@ const mobilePlacements: Partial<Record<Placement, ZoneConfig>> = {
     className: process.env.NEXT_PUBLIC_EXOCLICK_PLAYER_MOBILE_CLASS,
     format: "leaderboard",
   },
+  "catalog-instant": {
+    zoneId: process.env.NEXT_PUBLIC_EXOCLICK_MOBILE_INSTANT_ZONE_ID,
+    className: process.env.NEXT_PUBLIC_EXOCLICK_MOBILE_INSTANT_CLASS,
+    format: "overlay",
+  },
   fullpage: {
     zoneId: process.env.NEXT_PUBLIC_EXOCLICK_MOBILE_FPI_ZONE_ID,
     className: process.env.NEXT_PUBLIC_EXOCLICK_MOBILE_FPI_CLASS,

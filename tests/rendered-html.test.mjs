@@ -243,9 +243,11 @@ test("adds deterministic entity context and structured data without AI calls", a
 });
 
 test("keeps ExoClick disabled until complete validated zone configuration is supplied", async () => {
-  const [adSlot, globalFormats, directory, layout, envExample, productionCheck, adCheck, adsTxtRoute, favicon, socialImage] = await Promise.all([
+  const [adSlot, globalFormats, mobilePopunder, catalog, directory, layout, envExample, productionCheck, adCheck, adsTxtRoute, favicon, socialImage] = await Promise.all([
     source("components/ads/ad-slot.tsx"),
     source("components/ads/global-ad-formats.tsx"),
+    source("components/ads/mobile-popunder.tsx"),
+    source("components/catalog.tsx"),
     source("components/directory/entity-directory.tsx"),
     source("app/layout.tsx"),
     source(".env.example"),
@@ -267,6 +269,7 @@ test("keeps ExoClick disabled until complete validated zone configuration is sup
   assert.match(adSlot, /NEXT_PUBLIC_EXOCLICK_VIDEO_SLIDER_ZONE_ID/);
   assert.match(adSlot, /NEXT_PUBLIC_EXOCLICK_DESKTOP_FPI_ZONE_ID/);
   assert.match(adSlot, /NEXT_PUBLIC_EXOCLICK_MOBILE_FPI_ZONE_ID/);
+  assert.match(adSlot, /NEXT_PUBLIC_EXOCLICK_MOBILE_INSTANT_ZONE_ID/);
   assert.match(adSlot, /a\.pemsrv\.com\/ad-provider\.js/);
   assert.match(adSlot, /matchMedia\("\(max-width: 820px\)"\)/);
   assert.match(adSlot, /Device \| null/);
@@ -276,11 +279,20 @@ test("keeps ExoClick disabled until complete validated zone configuration is sup
   assert.match(globalFormats, /directoryRoutes/);
   assert.match(globalFormats, /placement="catalog-instant"/);
   assert.match(globalFormats, /placement="watch-slider"/);
+  assert.match(globalFormats, /device === "desktop" && isWatch/);
+  assert.match(globalFormats, /<MobilePopunder \/>/);
   assert.match(globalFormats, /placement="fullpage"/);
+  assert.match(mobilePopunder, /NEXT_PUBLIC_EXOCLICK_MOBILE_POPUNDER_ZONE_ID/);
+  assert.match(mobilePopunder, /a\.pemsrv\.com\/popunder1000\.js/);
+  assert.match(mobilePopunder, /actrexx-mobile-pop/);
+  assert.match(mobilePopunder, /matchMedia\("\(max-width: 820px\)"\)/);
+  assert.match(catalog, /video-thumb actrexx-mobile-pop/);
   assert.match(directory, /placement="catalog-top"/);
   assert.match(layout, /<GlobalAdFormats \/>/);
   assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_BLOCK_AD_TYPES=/);
   assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_MOBILE_FPI_ZONE_ID=/);
+  assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_MOBILE_INSTANT_ZONE_ID=/);
+  assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_MOBILE_POPUNDER_ZONE_ID=/);
   assert.doesNotMatch(adSlot, /\|\| "101"/);
   assert.match(productionCheck, /Advertising is enabled but configuration is incomplete/);
   assert.match(productionCheck, /optionalPlacements/);

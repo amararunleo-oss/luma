@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { AdSlot } from "./ad-slot";
+import { MobilePopunder } from "./mobile-popunder";
 
 type Device = "mobile" | "desktop";
 
@@ -29,8 +30,9 @@ export function GlobalAdFormats() {
   return (
     <>
       {device === "desktop" && directoryRoutes.has(pathname) && <AdSlot placement="desktop-sticky" />}
-      {device === "desktop" && isCatalog && <AdSlot placement="catalog-instant" />}
-      {isWatch && <AdSlot placement="watch-slider" />}
+      {isCatalog && <AdSlot placement="catalog-instant" />}
+      {device === "desktop" && isWatch && <AdSlot placement="watch-slider" />}
+      {device === "mobile" && <MobilePopunder />}
       <AdSlot placement="fullpage" />
     </>
   );

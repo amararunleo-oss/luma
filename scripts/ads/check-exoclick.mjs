@@ -8,7 +8,7 @@ if (existsSync(".env.local")) process.loadEnvFile(".env.local");
 const strict = process.argv.includes("--strict");
 const enabled = process.env.NEXT_PUBLIC_ADS_ENABLED === "true";
 const placements = ["CATALOG", "CATALOG_MOBILE", "SIDEBAR", "PLAYER", "PLAYER_MOBILE", "OUTSTREAM"];
-const optionalPlacements = ["STICKY", "INSTANT", "VIDEO_SLIDER", "DESKTOP_FPI", "MOBILE_FPI"];
+const optionalPlacements = ["STICKY", "INSTANT", "VIDEO_SLIDER", "DESKTOP_FPI", "MOBILE_FPI", "MOBILE_INSTANT"];
 const issues = [];
 const warnings = [];
 
@@ -18,6 +18,10 @@ for (const placement of placements) {
   if (!zone || !className) issues.push(`${placement.toLowerCase()} zone is missing`);
   else if (!/^\d+$/.test(zone) || !/^[a-z][a-z0-9_-]+$/i.test(className)) issues.push(`${placement.toLowerCase()} zone values are invalid`);
 }
+
+const mobilePopunder = process.env.NEXT_PUBLIC_EXOCLICK_MOBILE_POPUNDER_ZONE_ID?.trim();
+if (!mobilePopunder) warnings.push("mobile_popunder placement is not configured");
+else if (!/^\d+$/.test(mobilePopunder)) issues.push("mobile_popunder zone ID is invalid");
 
 for (const placement of optionalPlacements) {
   const zone = process.env[`NEXT_PUBLIC_EXOCLICK_${placement}_ZONE_ID`]?.trim();

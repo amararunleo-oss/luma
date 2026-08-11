@@ -12,7 +12,7 @@ export const PAGE_SIZE = 24;
 export function VideoCard({ video, priority = false }: { video: Video; priority?: boolean }) {
   return (
     <article className="video-card">
-      <Link className="video-thumb" href={`/watch/${video.slug}`} aria-label={`Watch ${video.title}`}>
+      <Link className="video-thumb actrexx-mobile-pop" href={`/watch/${video.slug}`} aria-label={`Watch ${video.title}`}>
         <Thumbnail src={video.thumbnail} alt={video.title} priority={priority} />
         <span className="play-button" aria-hidden="true"><Play size={18} fill="currentColor" strokeWidth={1.8} /></span>
         <span className="duration">{video.duration}</span>

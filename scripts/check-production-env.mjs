@@ -59,7 +59,7 @@ if (process.env.NEXT_PUBLIC_ADS_ENABLED === "true") {
     process.exit(1);
   }
 
-  const optionalPlacements = ["STICKY", "INSTANT", "VIDEO_SLIDER", "DESKTOP_FPI", "MOBILE_FPI"];
+  const optionalPlacements = ["STICKY", "INSTANT", "VIDEO_SLIDER", "DESKTOP_FPI", "MOBILE_FPI", "MOBILE_INSTANT"];
   for (const placement of optionalPlacements) {
     const zoneKey = `NEXT_PUBLIC_EXOCLICK_${placement}_ZONE_ID`;
     const classKey = `NEXT_PUBLIC_EXOCLICK_${placement}_CLASS`;
@@ -73,6 +73,18 @@ if (process.env.NEXT_PUBLIC_ADS_ENABLED === "true") {
       console.error(`Optional advertising placement ${placement} has an invalid zone ID or async class.`);
       process.exit(1);
     }
+  }
+
+  const popunderZone = process.env.NEXT_PUBLIC_EXOCLICK_MOBILE_POPUNDER_ZONE_ID?.trim();
+  const popunderPeriod = process.env.NEXT_PUBLIC_EXOCLICK_MOBILE_POPUNDER_FREQUENCY_PERIOD?.trim();
+  const popunderCount = process.env.NEXT_PUBLIC_EXOCLICK_MOBILE_POPUNDER_FREQUENCY_COUNT?.trim();
+  if (popunderZone && !/^\d+$/.test(popunderZone)) {
+    console.error("NEXT_PUBLIC_EXOCLICK_MOBILE_POPUNDER_ZONE_ID must be numeric.");
+    process.exit(1);
+  }
+  if ((popunderPeriod && (!/^\d+$/.test(popunderPeriod) || Number(popunderPeriod) < 1)) || (popunderCount && (!/^\d+$/.test(popunderCount) || Number(popunderCount) < 1))) {
+    console.error("Mobile popunder frequency period and count must be positive integers.");
+    process.exit(1);
   }
 
   if (!process.env.ADS_TXT?.trim()) {
