@@ -363,10 +363,10 @@ test("keeps ExoClick configuration valid and uses a fresh document lifecycle for
   assert.match(mobilePopunder, /matchMedia\("\(max-width: 820px\)"\)/);
   assert.match(mobilePopunder, /script\.addEventListener\("error"/);
   assert.match(desktopPopunder, /NEXT_PUBLIC_EXOCLICK_DESKTOP_POPUNDER_ZONE_ID/);
-  assert.match(desktopPopunder, /NEXT_PUBLIC_EXOCLICK_DESKTOP_POPUNDER_FREQUENCY_PERIOD \|\| "5"/);
-  assert.match(desktopPopunder, /NEXT_PUBLIC_EXOCLICK_DESKTOP_POPUNDER_FREQUENCY_COUNT \|\| "2"/);
-  assert.match(desktopPopunder, /NEXT_PUBLIC_EXOCLICK_DESKTOP_POPUNDER_TRIGGER_DELAY \|\| "60"/);
-  assert.match(mobilePopunder, /NEXT_PUBLIC_EXOCLICK_MOBILE_POPUNDER_TRIGGER_DELAY \|\| "60"/);
+  assert.match(desktopPopunder, /NEXT_PUBLIC_EXOCLICK_DESKTOP_POPUNDER_FREQUENCY_PERIOD \|\| "10"/);
+  assert.match(desktopPopunder, /NEXT_PUBLIC_EXOCLICK_DESKTOP_POPUNDER_FREQUENCY_COUNT \|\| "3"/);
+  assert.match(mobilePopunder, /NEXT_PUBLIC_EXOCLICK_MOBILE_POPUNDER_FREQUENCY_PERIOD \|\| "10"/);
+  assert.match(mobilePopunder, /NEXT_PUBLIC_EXOCLICK_MOBILE_POPUNDER_FREQUENCY_COUNT \|\| "3"/);
   assert.match(desktopPopunder, /matchMedia\("\(min-width: 821px\)"\)/);
   assert.match(desktopPopunder, /actrexx-desktop-pop/);
   assert.match(desktopPopunder, /a\.pemsrv\.com\/popunder1000\.js/);
