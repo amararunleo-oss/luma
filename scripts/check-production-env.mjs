@@ -78,6 +78,7 @@ if (process.env.NEXT_PUBLIC_ADS_ENABLED === "true") {
   const popunderZone = process.env.NEXT_PUBLIC_EXOCLICK_MOBILE_POPUNDER_ZONE_ID?.trim();
   const popunderPeriod = process.env.NEXT_PUBLIC_EXOCLICK_MOBILE_POPUNDER_FREQUENCY_PERIOD?.trim();
   const popunderCount = process.env.NEXT_PUBLIC_EXOCLICK_MOBILE_POPUNDER_FREQUENCY_COUNT?.trim();
+  const popunderDelay = process.env.NEXT_PUBLIC_EXOCLICK_MOBILE_POPUNDER_TRIGGER_DELAY?.trim();
   if (popunderZone && !/^\d+$/.test(popunderZone)) {
     console.error("NEXT_PUBLIC_EXOCLICK_MOBILE_POPUNDER_ZONE_ID must be numeric.");
     process.exit(1);
@@ -86,16 +87,25 @@ if (process.env.NEXT_PUBLIC_ADS_ENABLED === "true") {
     console.error("Mobile popunder frequency period and count must be positive integers.");
     process.exit(1);
   }
+  if (popunderDelay && (!/^\d+$/.test(popunderDelay) || Number(popunderDelay) < 0)) {
+    console.error("Mobile popunder trigger delay must be a non-negative integer in seconds.");
+    process.exit(1);
+  }
 
   const desktopPopunderZone = process.env.NEXT_PUBLIC_EXOCLICK_DESKTOP_POPUNDER_ZONE_ID?.trim();
   const desktopPopunderPeriod = process.env.NEXT_PUBLIC_EXOCLICK_DESKTOP_POPUNDER_FREQUENCY_PERIOD?.trim();
   const desktopPopunderCount = process.env.NEXT_PUBLIC_EXOCLICK_DESKTOP_POPUNDER_FREQUENCY_COUNT?.trim();
+  const desktopPopunderDelay = process.env.NEXT_PUBLIC_EXOCLICK_DESKTOP_POPUNDER_TRIGGER_DELAY?.trim();
   if (desktopPopunderZone && !/^\d+$/.test(desktopPopunderZone)) {
     console.error("NEXT_PUBLIC_EXOCLICK_DESKTOP_POPUNDER_ZONE_ID must be numeric.");
     process.exit(1);
   }
   if ((desktopPopunderPeriod && (!/^\d+$/.test(desktopPopunderPeriod) || Number(desktopPopunderPeriod) < 1)) || (desktopPopunderCount && (!/^\d+$/.test(desktopPopunderCount) || Number(desktopPopunderCount) < 1))) {
     console.error("Desktop popunder frequency period and count must be positive integers.");
+    process.exit(1);
+  }
+  if (desktopPopunderDelay && (!/^\d+$/.test(desktopPopunderDelay) || Number(desktopPopunderDelay) < 0)) {
+    console.error("Desktop popunder trigger delay must be a non-negative integer in seconds.");
     process.exit(1);
   }
 
