@@ -128,7 +128,9 @@ img { max-width: 100%; }
 .ad-zone-host { width:100%; max-width:100%; display:grid; place-items:center; }
 .ad-zone-host > ins { max-width:100%; display:block; margin-inline:auto; }
 .ad-slot:not(.ad-slot-overlay) > div, .ad-slot:not(.ad-slot-overlay) > div > div, .ad-slot:not(.ad-slot-overlay) iframe { max-width:100%; margin-inline:auto !important; }
-.ad-slot[data-active="false"], .ad-slot[data-state="failed"], .ad-slot[data-state="empty"] { display:none; }
+.ad-slot[data-active="false"], .ad-slot[data-state="failed"] { display:none; }
+.ad-slot[data-state="empty"] { min-height:0; margin-block:0; }
+.ad-slot[data-state="empty"] > span { display:none; }
 .ad-slot-leaderboard { min-height:106px; }
 .ad-slot-rectangle { min-height:278px; margin-bottom:30px; }
 .ad-slot-compact { min-height:112px; }

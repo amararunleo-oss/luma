@@ -317,6 +317,10 @@ test("keeps ExoClick configuration valid and uses a fresh document lifecycle for
   assert.match(adSlot, /NEXT_PUBLIC_ADS_ENABLED === "true"/);
   assert.match(adSlot, /a\.magsrv\.com\/ad-provider\.js/);
   assert.match(adSlot, /IntersectionObserver/);
+  assert.match(adSlot, /isNearViewport\(element\)/);
+  assert.match(adSlot, /window\.addEventListener\("scroll", activateIfNear/);
+  assert.match(adSlot, /\[active, device, format, visible\]/);
+  assert.doesNotMatch(adSlot, /status === "empty"/);
   assert.match(adSlot, /validZone/);
   assert.match(adSlot, /NEXT_PUBLIC_EXOCLICK_CATALOG_MOBILE_ZONE_ID/);
   assert.match(adSlot, /NEXT_PUBLIC_EXOCLICK_OUTSTREAM_ZONE_ID/);
@@ -329,8 +333,8 @@ test("keeps ExoClick configuration valid and uses a fresh document lifecycle for
   assert.match(adSlot, /a\.pemsrv\.com\/ad-provider\.js/);
   assert.match(adSlot, /matchMedia\("\(max-width: 820px\)"\)/);
   assert.match(adSlot, /Device \| null/);
-  assert.match(adSlot, /!device \|\| failed \|\| status === "empty" \|\| !validZone/);
-  assert.match(adSlot, /failed \|\| status === "empty"/);
+  assert.match(adSlot, /!device \|\| failed \|\| !validZone/);
+  assert.doesNotMatch(adSlot, /failed \|\| status === "empty"/);
   assert.doesNotMatch(adSlot, /usePathname|useSearchParams|routeKey/);
   assert.match(adSlot, /zone\.dataset\.processed === "true"/);
   assert.match(adSlot, /host\.replaceChildren\(zone\)/);
@@ -374,6 +378,7 @@ test("keeps ExoClick configuration valid and uses a fresh document lifecycle for
   assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_DRAWER_MOBILE_ZONE_ID=/);
   assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_SEARCH_MOBILE_ZONE_ID=/);
   assert.match(css, /\.ad-slot:not\(\.ad-slot-overlay\) iframe/);
+  assert.match(css, /\.ad-slot\[data-state="empty"\] \{ min-height:0; margin-block:0; \}/);
   assert.match(css, /\.ad-slot-overlay \.ad-zone-host \{ width:auto; max-width:none/);
   assert.doesNotMatch(adSlot, /\|\| "101"/);
   assert.match(productionCheck, /Advertising is enabled but configuration is incomplete/);

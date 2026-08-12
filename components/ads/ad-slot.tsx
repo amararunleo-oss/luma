@@ -122,6 +122,7 @@ const adsEnabled = process.env.NEXT_PUBLIC_ADS_ENABLED === "true";
 const blockedAdTypes = process.env.NEXT_PUBLIC_EXOCLICK_BLOCK_AD_TYPES?.trim();
 const EMPTY_AFTER_MS = 15_000;
 const PROVIDER_RETRY_MS = 1_500;
+const LAZY_ROOT_MARGIN_PX = 320;
 
 function validZone(config: { zoneId?: string; className?: string }) {
   return Boolean(config.zoneId && /^\d+$/.test(config.zoneId) && config.className && /^[a-z][a-z0-9_-]+$/i.test(config.className));
@@ -182,6 +183,11 @@ function createZone(className: string, zoneId: string) {
   return zone;
 }
 
+function isNearViewport(element: HTMLElement) {
+  const rect = element.getBoundingClientRect();
+  return rect.top <= window.innerHeight + LAZY_ROOT_MARGIN_PX && rect.bottom >= -LAZY_ROOT_MARGIN_PX;
+}
+
 function hasRenderedCreative(host: HTMLElement, zone: HTMLElement, format: string) {
   if (format === "overlay") {
     return zone.dataset.processed === "true" || host.children.length > 1;
@@ -223,14 +229,29 @@ export function AdSlot({ placement, active = true }: { placement: Placement; act
     const element = containerRef.current;
     if (!active || format === "overlay") return;
     if (!element || visible) return;
+    if (isNearViewport(element)) {
+      setVisible(true);
+      return;
+    }
     const observer = new IntersectionObserver(([entry]) => {
       if (!entry.isIntersecting) return;
       setVisible(true);
       observer.disconnect();
-    }, { rootMargin: "320px 0px" });
+    }, { rootMargin: `${LAZY_ROOT_MARGIN_PX}px 0px` });
     observer.observe(element);
-    return () => observer.disconnect();
-  }, [active, format, visible]);
+    const activateIfNear = () => {
+      if (!isNearViewport(element)) return;
+      setVisible(true);
+      observer.disconnect();
+    };
+    window.addEventListener("scroll", activateIfNear, { passive: true });
+    window.addEventListener("resize", activateIfNear, { passive: true });
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("scroll", activateIfNear);
+      window.removeEventListener("resize", activateIfNear);
+    };
+  }, [active, device, format, visible]);
 
   useEffect(() => {
     const host = zoneHostRef.current;
@@ -289,7 +310,7 @@ export function AdSlot({ placement, active = true }: { placement: Placement; act
     };
   }, [active, className, device, format, provider, readyToServe, zoneId]);
 
-  if (!adsEnabled || !device || failed || status === "empty" || !validZone({ zoneId, className })) return null;
+  if (!adsEnabled || !device || failed || !validZone({ zoneId, className })) return null;
 
   return (
     <div className={`ad-slot ad-slot-${format}`} data-active={active} data-device={device} data-placement={placement} data-state={failed ? "failed" : status} ref={containerRef}>
