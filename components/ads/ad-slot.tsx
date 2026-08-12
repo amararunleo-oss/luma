@@ -121,6 +121,7 @@ const mobilePlacements: Partial<Record<Placement, ZoneConfig>> = {
 const adsEnabled = process.env.NEXT_PUBLIC_ADS_ENABLED === "true";
 const blockedAdTypes = process.env.NEXT_PUBLIC_EXOCLICK_BLOCK_AD_TYPES?.trim();
 const EMPTY_AFTER_MS = 15_000;
+const EMPTY_RETRY_DELAY_MS = 15_000;
 const PROVIDER_RETRY_MS = 1_500;
 const LAZY_ROOT_MARGIN_PX = 320;
 
@@ -258,6 +259,8 @@ export function AdSlot({ placement, active = true }: { placement: Placement; act
     if (!host || !active || !device || !readyToServe || !adsEnabled || !validZone({ zoneId, className })) return;
     let alive = true;
     let providerRetryTimer: number | undefined;
+    let emptyRetryTimer: number | undefined;
+    let retryEmptyTimer: number | undefined;
     let providerAttempts = 0;
 
     setFailed(false);
@@ -298,12 +301,34 @@ export function AdSlot({ placement, active = true }: { placement: Placement; act
     connectProvider();
     updateStatus();
     const emptyTimer = format === "overlay" ? undefined : window.setTimeout(() => {
-      if (alive && zone) setStatus(hasRenderedCreative(host, zone, format) ? "loaded" : "empty");
+      if (!alive || !zone) return;
+      if (hasRenderedCreative(host, zone, format)) {
+        setStatus("loaded");
+        return;
+      }
+      setStatus("empty");
+      emptyRetryTimer = window.setTimeout(() => {
+        const container = containerRef.current;
+        if (!alive || !zone || !container || document.visibilityState !== "visible" || !isNearViewport(container)) return;
+        if (hasRenderedCreative(host, zone, format)) {
+          setStatus("loaded");
+          return;
+        }
+        zone = createZone(className!, zoneId!);
+        host.replaceChildren(zone);
+        setStatus("loading");
+        scheduleServe();
+        retryEmptyTimer = window.setTimeout(() => {
+          if (alive && zone) setStatus(hasRenderedCreative(host, zone, format) ? "loaded" : "empty");
+        }, EMPTY_AFTER_MS);
+      }, EMPTY_RETRY_DELAY_MS);
     }, EMPTY_AFTER_MS);
 
     return () => {
       alive = false;
       if (emptyTimer !== undefined) window.clearTimeout(emptyTimer);
+      if (emptyRetryTimer !== undefined) window.clearTimeout(emptyRetryTimer);
+      if (retryEmptyTimer !== undefined) window.clearTimeout(retryEmptyTimer);
       if (providerRetryTimer !== undefined) window.clearTimeout(providerRetryTimer);
       if (format === "overlay") document.removeEventListener(creativeEvent, creativeDisplayed);
       observer.disconnect();

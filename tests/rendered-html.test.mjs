@@ -342,6 +342,9 @@ test("keeps ExoClick configuration valid and uses a fresh document lifecycle for
   assert.match(adSlot, /hasRenderedCreative/);
   assert.match(adSlot, /creativeDisplayed-/);
   assert.match(adSlot, /format === "overlay" \? undefined/);
+  assert.match(adSlot, /EMPTY_RETRY_DELAY_MS/);
+  assert.match(adSlot, /document\.visibilityState !== "visible"/);
+  assert.match(adSlot, /host\.replaceChildren\(zone\);\s+setStatus\("loading"\);\s+scheduleServe\(\)/);
   assert.doesNotMatch(adSlot, /servedOverlayZoneRef|RETRY_AFTER_MS|mountZone\(true\)/);
   assert.doesNotMatch(adSlot, /data-ex_av/);
   assert.match(globalFormats, /device === "desktop" && <AdSlot active=\{monetizedRoute\} placement="desktop-sticky"/);
