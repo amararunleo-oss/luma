@@ -197,7 +197,7 @@ test("stores compressed catalog cache envelopes in Upstash as readable strings",
   assert.doesNotMatch(cache, /connection\.set\(fullKey, envelope/);
 });
 
-test("protects Vercel compute with layered data caching and watch-page ISR", async () => {
+test("protects Vercel compute without persisting transient D1 fallbacks", async () => {
   const [repository, watchPage, layout, d1, upstash] = await Promise.all([
     source("lib/catalog/repository.ts"),
     source("app/watch/[slug]/page.tsx"),
@@ -205,14 +205,16 @@ test("protects Vercel compute with layered data caching and watch-page ISR", asy
     source("lib/cloudflare/d1-http.ts"),
     source("lib/cache/upstash.ts"),
   ]);
-  assert.match(repository, /unstable_cache/);
-  assert.match(repository, /getVideoBySlugDataCached/);
-  assert.match(repository, /listVideosDataCached/);
+  assert.doesNotMatch(repository, /unstable_cache/);
+  assert.match(repository, /type DatabaseResult<T> = \{ value: T; database: boolean \}/);
+  assert.ok((repository.match(/shouldCache: \((?:result|outcome)\) => (?:result|outcome)\.database/g) ?? []).length >= 8);
   assert.match(watchPage, /export const revalidate = 86_400/);
   assert.match(watchPage, /return \[\]/);
   assert.doesNotMatch(layout, /requestOrigin/);
   assert.doesNotMatch(d1, /cache: "no-store"/);
   assert.match(upstash, /cache: "default"/);
+  assert.match(upstash, /const CACHE_SCHEMA_VERSION = "v2"/);
+  assert.match(upstash, /const inFlight = new Map/);
 });
 
 test("generates page-specific SEO without indexing internal search results", async () => {

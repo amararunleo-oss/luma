@@ -1,7 +1,6 @@
 import { actresses as seedActresses, slugify, tags as seedTags, videos as seedVideos, years as seedYears, type Video, type VideoType } from "@/lib/videos";
 import { getD1Database } from "@/lib/cloudflare/d1-http";
 import { catalogCacheKey, withCatalogCache } from "@/lib/cache/upstash";
-import { unstable_cache } from "next/cache";
 
 export const DEFAULT_PAGE_SIZE = 24;
 
@@ -86,6 +85,7 @@ export type SearchSuggestions = {
   tvShows: SearchSuggestion[];
 };
 export type CatalogPage = { items: Video[]; total: number; page: number; pageSize: number; database: boolean };
+type DatabaseResult<T> = { value: T; database: boolean };
 export type CatalogSitemap = {
   videos: { slug: string; updatedAt: string }[];
   actresses: { slug: string; updatedAt: string }[];
@@ -346,16 +346,14 @@ async function listVideosRemoteCached(options: QueryOptions = {}): Promise<Catal
   });
 }
 
-const listVideosDataCached = unstable_cache(listVideosRemoteCached, ["actrexx", "catalog", "videos", "v2"], { revalidate: 6 * 60 * 60 });
-const searchVideosDataCached = unstable_cache(listVideosRemoteCached, ["actrexx", "catalog", "video-search", "v2"], { revalidate: 15 * 60 });
-
 export async function listVideos(options: QueryOptions = {}): Promise<CatalogPage> {
-  return options.search?.trim() ? searchVideosDataCached(options) : listVideosDataCached(options);
+  return listVideosRemoteCached(options);
 }
 
-async function getVideoBySlugUncached(slug: string) {
+async function getVideoBySlugUncached(slug: string): Promise<DatabaseResult<Video | null>> {
   const db = database();
-  if (!db) return seedVideos.find((video) => video.slug === slug);
+  const seedVideo = () => seedVideos.find((video) => video.slug === slug) ?? null;
+  if (!db) return { value: seedVideo(), database: false };
   try {
     const result = await db.prepare(`
       SELECT
@@ -370,22 +368,21 @@ async function getVideoBySlugUncached(slug: string) {
       FROM videos v LEFT JOIN works w ON w.id = v.work_id
       WHERE v.slug = ? AND v.is_active = 1 LIMIT 1
     `).bind(slug).first<VideoRow>();
-    return result ? toVideo(result) : undefined;
+    return { value: result ? toVideo(result) : null, database: true };
   } catch {
-    return seedVideos.find((video) => video.slug === slug);
+    return { value: seedVideo(), database: false };
   }
 }
 
 async function getVideoBySlugRemoteCached(slug: string) {
-  return withCatalogCache(catalogCacheKey("video", slug), 24 * 60 * 60, () => getVideoBySlugUncached(slug), {
-    shouldCache: (video) => Boolean(video),
+  const result = await withCatalogCache(catalogCacheKey("video", slug), 24 * 60 * 60, () => getVideoBySlugUncached(slug), {
+    shouldCache: (outcome) => outcome.database,
   });
+  return result.value ?? undefined;
 }
 
-const getVideoBySlugDataCached = unstable_cache(getVideoBySlugRemoteCached, ["actrexx", "catalog", "video", "v2"], { revalidate: 7 * 24 * 60 * 60 });
-
 export async function getVideoBySlug(slug: string) {
-  return getVideoBySlugDataCached(slug);
+  return getVideoBySlugRemoteCached(slug);
 }
 
 function relatedScore(current: Video, candidate: Video) {
@@ -401,18 +398,20 @@ function relatedScore(current: Video, candidate: Video) {
     + Math.max(0, 8 - yearDistance);
 }
 
-async function getRelatedVideosUncached(video: Video, limit = 8): Promise<Video[]> {
+function getSeedRelatedVideos(video: Video, limit: number): Video[] {
+  return seedVideos
+    .filter((candidate) => candidate.id !== video.id)
+    .map((candidate) => ({ candidate, score: relatedScore(video, candidate) }))
+    .filter((item) => item.score > 5)
+    .sort((a, b) => b.score - a.score || b.candidate.rating - a.candidate.rating || b.candidate.id - a.candidate.id)
+    .slice(0, limit)
+    .map((item) => item.candidate);
+}
+
+async function getRelatedVideosUncached(video: Video, limit = 8): Promise<DatabaseResult<Video[]>> {
   const safeLimit = Math.max(1, Math.min(12, limit));
   const db = database();
-  if (!db) {
-    return seedVideos
-      .filter((candidate) => candidate.id !== video.id)
-      .map((candidate) => ({ candidate, score: relatedScore(video, candidate) }))
-      .filter((item) => item.score > 5)
-      .sort((a, b) => b.score - a.score || b.candidate.rating - a.candidate.rating || b.candidate.id - a.candidate.id)
-      .slice(0, safeLimit)
-      .map((item) => item.candidate);
-  }
+  if (!db) return { value: getSeedRelatedVideos(video, safeLimit), database: false };
   try {
     const result = await db.prepare(`
       WITH current_video AS (
@@ -457,27 +456,22 @@ async function getRelatedVideosUncached(video: Video, limit = 8): Promise<Video[
       ORDER BY relevance DESC, v.rating DESC, v.id DESC
       LIMIT ?
     `).bind(video.id, safeLimit).all<VideoRow>();
-    return (result.results ?? []).map(toVideo);
+    return { value: (result.results ?? []).map(toVideo), database: true };
   } catch {
-    return seedVideos
-      .filter((candidate) => candidate.id !== video.id)
-      .map((candidate) => ({ candidate, score: relatedScore(video, candidate) }))
-      .filter((item) => item.score > 5)
-      .sort((a, b) => b.score - a.score || b.candidate.rating - a.candidate.rating)
-      .slice(0, safeLimit)
-      .map((item) => item.candidate);
+    return { value: getSeedRelatedVideos(video, safeLimit), database: false };
   }
 }
 
 async function getRelatedVideosRemoteCached(video: Video, limit = 8): Promise<Video[]> {
   const safeLimit = Math.max(1, Math.min(12, limit));
-  return withCatalogCache(catalogCacheKey("related", [video.id, safeLimit]), 24 * 60 * 60, () => getRelatedVideosUncached(video, safeLimit));
+  const result = await withCatalogCache(catalogCacheKey("related", [video.id, safeLimit]), 24 * 60 * 60, () => getRelatedVideosUncached(video, safeLimit), {
+    shouldCache: (outcome) => outcome.database,
+  });
+  return result.value;
 }
 
-const getRelatedVideosDataCached = unstable_cache(getRelatedVideosRemoteCached, ["actrexx", "catalog", "related", "v2"], { revalidate: 24 * 60 * 60 });
-
 export async function getRelatedVideos(video: Video, limit = 8): Promise<Video[]> {
-  return getRelatedVideosDataCached(video, Math.max(1, Math.min(12, limit)));
+  return getRelatedVideosRemoteCached(video, Math.max(1, Math.min(12, limit)));
 }
 
 function seedWorks(type: VideoType): DirectoryEntry[] {
@@ -503,22 +497,30 @@ export async function getActressDirectory(letter?: string): Promise<DirectoryEnt
   return seedActresses.filter((item) => !normalized || item.name[0]?.toUpperCase() === normalized).map((item) => ({ ...item, initial: item.name[0]?.toUpperCase() ?? "#", description: `Movie and television scenes featuring ${item.name}.` }));
 }
 
-async function getActressBySlugUncached(slug: string): Promise<DirectoryEntry | undefined> {
+async function getActressBySlugUncached(slug: string): Promise<DatabaseResult<DirectoryEntry | null>> {
   const db = database();
   if (db) {
     try {
       const item = await db.prepare("SELECT name, slug, initial, video_count AS count, description FROM actresses WHERE slug = ? AND video_count > 0 LIMIT 1").bind(slug).first<DirectoryEntry>();
-      return item ?? undefined;
+      return { value: item ?? null, database: true };
     } catch { /* use seed */ }
   }
   const actress = seedActresses.find((item) => item.slug === slug);
-  return actress ? { ...actress, initial: actress.name[0]?.toUpperCase() ?? "#", description: `Movie and television scenes featuring ${actress.name}.` } : undefined;
+  return {
+    value: actress ? { ...actress, initial: actress.name[0]?.toUpperCase() ?? "#", description: `Movie and television scenes featuring ${actress.name}.` } : null,
+    database: false,
+  };
 }
 
-const getActressBySlugDataCached = unstable_cache(getActressBySlugUncached, ["actrexx", "catalog", "actress", "v2"], { revalidate: 7 * 24 * 60 * 60 });
+async function getActressBySlugRemoteCached(slug: string): Promise<DirectoryEntry | undefined> {
+  const result = await withCatalogCache(catalogCacheKey("actress", slug), 24 * 60 * 60, () => getActressBySlugUncached(slug), {
+    shouldCache: (outcome) => outcome.database,
+  });
+  return result.value ?? undefined;
+}
 
 export async function getActressBySlug(slug: string): Promise<DirectoryEntry | undefined> {
-  return getActressBySlugDataCached(slug);
+  return getActressBySlugRemoteCached(slug);
 }
 
 export async function getWorkDirectory(type: VideoType, letter?: string): Promise<DirectoryEntry[]> {
@@ -536,7 +538,7 @@ export async function getWorkDirectory(type: VideoType, letter?: string): Promis
   return seedWorks(type).filter((item) => !normalized || item.initial === normalized);
 }
 
-async function getWorkBySlugUncached(type: VideoType, slug: string): Promise<DirectoryEntry | undefined> {
+async function getWorkBySlugUncached(type: VideoType, slug: string): Promise<DatabaseResult<DirectoryEntry | null>> {
   const db = database();
   if (db) {
     try {
@@ -547,16 +549,21 @@ async function getWorkBySlugUncached(type: VideoType, slug: string): Promise<Dir
         WHERE w.type = ? AND w.slug = ?
         GROUP BY w.id LIMIT 1
       `).bind(dbType, slug).first<DirectoryEntry>();
-      return item ?? undefined;
+      return { value: item ?? null, database: true };
     } catch { /* use seed */ }
   }
-  return seedWorks(type).find((item) => item.slug === slug);
+  return { value: seedWorks(type).find((item) => item.slug === slug) ?? null, database: false };
 }
 
-const getWorkBySlugDataCached = unstable_cache(getWorkBySlugUncached, ["actrexx", "catalog", "work", "v2"], { revalidate: 7 * 24 * 60 * 60 });
+async function getWorkBySlugRemoteCached(type: VideoType, slug: string): Promise<DirectoryEntry | undefined> {
+  const result = await withCatalogCache(catalogCacheKey("work", [type, slug]), 24 * 60 * 60, () => getWorkBySlugUncached(type, slug), {
+    shouldCache: (outcome) => outcome.database,
+  });
+  return result.value ?? undefined;
+}
 
 export async function getWorkBySlug(type: VideoType, slug: string): Promise<DirectoryEntry | undefined> {
-  return getWorkBySlugDataCached(type, slug);
+  return getWorkBySlugRemoteCached(type, slug);
 }
 
 async function listDirectoryUncached(options: DirectoryOptions): Promise<DirectoryPage> {
@@ -621,19 +628,17 @@ async function listDirectoryRemoteCached(options: DirectoryOptions): Promise<Dir
   });
 }
 
-const listDirectoryDataCached = unstable_cache(listDirectoryRemoteCached, ["actrexx", "catalog", "directory", "v2"], { revalidate: 12 * 60 * 60 });
-
 export async function listDirectory(options: DirectoryOptions): Promise<DirectoryPage> {
-  return listDirectoryDataCached(options);
+  return listDirectoryRemoteCached(options);
 }
 
 function emptySearch(query = ""): SearchSuggestions {
   return { query, videos: [], actresses: [], movies: [], tvShows: [] };
 }
 
-async function searchCatalogUncached(query: string, limitPerGroup = 5): Promise<SearchSuggestions> {
+async function searchCatalogUncached(query: string, limitPerGroup = 5): Promise<DatabaseResult<SearchSuggestions>> {
   const term = searchTerm(query);
-  if (term.length < 2) return emptySearch(term);
+  if (term.length < 2) return { value: emptySearch(term), database: true };
   const search = databaseSearchClause(term);
   const entityTerm = search.plan.identity || term;
   const limit = Math.max(1, Math.min(8, limitPerGroup));
@@ -673,11 +678,14 @@ async function searchCatalogUncached(query: string, limitPerGroup = 5): Promise<
         `).bind(contains, entityTerm, prefix, limit).all<{ id: number; label: string; slug: string; count: number }>(),
       ]);
       return {
-        query: term,
-        videos: (videoResult.results ?? []).map((item) => ({ id: `video-${item.id}`, label: item.label, href: `/watch/${item.slug}`, meta: `${item.year ?? ""} · ${item.type === "tv_show" ? "TV Show" : "Movie"}`, group: "videos", image: thumbnailUrl(item.thumbnailKey) })),
-        actresses: (actressResult.results ?? []).map((item) => ({ id: `actress-${item.id}`, label: item.label, href: `/actress/${item.slug}`, meta: "Actress", group: "actresses" })),
-        movies: (movieResult.results ?? []).map((item) => ({ id: `movie-${item.id}`, label: item.label, href: `/movie/title/${item.slug}`, meta: "Movie", group: "movies" })),
-        tvShows: (tvResult.results ?? []).map((item) => ({ id: `tv-${item.id}`, label: item.label, href: `/tv-show/title/${item.slug}`, meta: "TV Show", group: "tvShows" })),
+        value: {
+          query: term,
+          videos: (videoResult.results ?? []).map((item) => ({ id: `video-${item.id}`, label: item.label, href: `/watch/${item.slug}`, meta: `${item.year ?? ""} · ${item.type === "tv_show" ? "TV Show" : "Movie"}`, group: "videos", image: thumbnailUrl(item.thumbnailKey) })),
+          actresses: (actressResult.results ?? []).map((item) => ({ id: `actress-${item.id}`, label: item.label, href: `/actress/${item.slug}`, meta: "Actress", group: "actresses" })),
+          movies: (movieResult.results ?? []).map((item) => ({ id: `movie-${item.id}`, label: item.label, href: `/movie/title/${item.slug}`, meta: "Movie", group: "movies" })),
+          tvShows: (tvResult.results ?? []).map((item) => ({ id: `tv-${item.id}`, label: item.label, href: `/tv-show/title/${item.slug}`, meta: "TV Show", group: "tvShows" })),
+        },
+        database: true,
       };
     } catch { /* use seed */ }
   }
@@ -686,11 +694,14 @@ async function searchCatalogUncached(query: string, limitPerGroup = 5): Promise<
   const movieEntries = seedWorks("Movie").filter((item) => item.name.toLowerCase().includes(entityTerm)).slice(0, limit);
   const tvEntries = seedWorks("TV Show").filter((item) => item.name.toLowerCase().includes(entityTerm)).slice(0, limit);
   return {
-    query: term,
-    videos: matches.slice(0, limit).map((video) => ({ id: `video-${video.id}`, label: video.sceneTitle, href: `/watch/${video.slug}`, meta: `${video.year} · ${video.type}`, group: "videos", image: video.thumbnail })),
-    actresses: actresses.map((item) => ({ id: `actress-${item.slug}`, label: item.name, href: `/actress/${item.slug}`, meta: "Actress", group: "actresses" })),
-    movies: movieEntries.map((item) => ({ id: `movie-${item.slug}`, label: item.name, href: `/movie/title/${item.slug}`, meta: "Movie", group: "movies" })),
-    tvShows: tvEntries.map((item) => ({ id: `tv-${item.slug}`, label: item.name, href: `/tv-show/title/${item.slug}`, meta: "TV Show", group: "tvShows" })),
+    value: {
+      query: term,
+      videos: matches.slice(0, limit).map((video) => ({ id: `video-${video.id}`, label: video.sceneTitle, href: `/watch/${video.slug}`, meta: `${video.year} · ${video.type}`, group: "videos", image: video.thumbnail })),
+      actresses: actresses.map((item) => ({ id: `actress-${item.slug}`, label: item.name, href: `/actress/${item.slug}`, meta: "Actress", group: "actresses" })),
+      movies: movieEntries.map((item) => ({ id: `movie-${item.slug}`, label: item.name, href: `/movie/title/${item.slug}`, meta: "Movie", group: "movies" })),
+      tvShows: tvEntries.map((item) => ({ id: `tv-${item.slug}`, label: item.name, href: `/tv-show/title/${item.slug}`, meta: "TV Show", group: "tvShows" })),
+    },
+    database: false,
   };
 }
 
@@ -698,13 +709,14 @@ async function searchCatalogRemoteCached(query: string, limitPerGroup = 5): Prom
   const term = searchTerm(query);
   if (term.length < 2) return emptySearch(term);
   const limit = Math.max(1, Math.min(8, limitPerGroup));
-  return withCatalogCache(catalogCacheKey("search", [term, limit]), 15 * 60, () => searchCatalogUncached(term, limit));
+  const result = await withCatalogCache(catalogCacheKey("search", [term, limit]), 15 * 60, () => searchCatalogUncached(term, limit), {
+    shouldCache: (outcome) => outcome.database,
+  });
+  return result.value;
 }
 
-const searchCatalogDataCached = unstable_cache(searchCatalogRemoteCached, ["actrexx", "catalog", "suggestions", "v2"], { revalidate: 15 * 60 });
-
 export async function searchCatalog(query: string, limitPerGroup = 5): Promise<SearchSuggestions> {
-  return searchCatalogDataCached(query, limitPerGroup);
+  return searchCatalogRemoteCached(query, limitPerGroup);
 }
 
 async function getTaxonomyUncached() {
@@ -740,10 +752,8 @@ async function getTaxonomyRemoteCached() {
   });
 }
 
-const getTaxonomyDataCached = unstable_cache(getTaxonomyRemoteCached, ["actrexx", "catalog", "taxonomy", "v2"], { revalidate: 24 * 60 * 60 });
-
 export async function getTaxonomy() {
-  return getTaxonomyDataCached();
+  return getTaxonomyRemoteCached();
 }
 
 export async function getCatalogSitemapCounts(): Promise<CatalogSitemapCounts> {

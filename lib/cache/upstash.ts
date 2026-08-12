@@ -20,6 +20,7 @@ const MAX_L1_ENTRIES = 500;
 const MAX_REMOTE_VALUE_BYTES = 256 * 1024;
 const COMPRESSION_THRESHOLD_BYTES = 2 * 1024;
 const L1_TTL_SECONDS = 60;
+const CACHE_SCHEMA_VERSION = "v2";
 const l1 = new Map<string, CacheEntry>();
 const inFlight = new Map<string, Promise<unknown>>();
 
@@ -42,8 +43,8 @@ function client() {
 }
 
 function namespace() {
-  const version = process.env.CATALOG_CACHE_VERSION?.trim() || "v1";
-  return `actrexx:catalog:${version}`;
+  const release = process.env.CATALOG_CACHE_VERSION?.trim() || "v1";
+  return `actrexx:catalog:${CACHE_SCHEMA_VERSION}:${release}`;
 }
 
 function namespaced(key: string) {
