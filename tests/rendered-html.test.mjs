@@ -293,7 +293,7 @@ test("publishes complete VideoObject data only on canonical watch pages", async 
 });
 
 test("keeps ExoClick configuration valid and uses a fresh document lifecycle for monetized navigation", async () => {
-  const [adSlot, globalFormats, mobilePopunder, revenueLink, catalog, catalogFilters, liveSearch, directory, layout, envExample, productionCheck, adCheck, adsTxtRoute, favicon, socialImage] = await Promise.all([
+  const [adSlot, globalFormats, mobilePopunder, revenueLink, catalog, catalogFilters, liveSearch, drawer, directory, watchPage, layout, css, envExample, productionCheck, adCheck, adsTxtRoute, favicon, socialImage] = await Promise.all([
     source("components/ads/ad-slot.tsx"),
     source("components/ads/global-ad-formats.tsx"),
     source("components/ads/mobile-popunder.tsx"),
@@ -301,8 +301,11 @@ test("keeps ExoClick configuration valid and uses a fresh document lifecycle for
     source("components/catalog.tsx"),
     source("components/catalog-filters.tsx"),
     source("components/search/live-search.tsx"),
+    source("components/navigation/browse-drawer.tsx"),
     source("components/directory/entity-directory.tsx"),
+    source("app/watch/[slug]/page.tsx"),
     source("app/layout.tsx"),
+    source("app/globals.css"),
     source(".env.example"),
     source("scripts/check-production-env.mjs"),
     source("scripts/ads/check-exoclick.mjs"),
@@ -326,12 +329,15 @@ test("keeps ExoClick configuration valid and uses a fresh document lifecycle for
   assert.match(adSlot, /a\.pemsrv\.com\/ad-provider\.js/);
   assert.match(adSlot, /matchMedia\("\(max-width: 820px\)"\)/);
   assert.match(adSlot, /Device \| null/);
-  assert.match(adSlot, /data-device=\{device \|\| "pending"\}/);
+  assert.match(adSlot, /!device \|\| failed \|\| status === "empty" \|\| !validZone/);
+  assert.match(adSlot, /failed \|\| status === "empty"/);
   assert.doesNotMatch(adSlot, /usePathname|useSearchParams|routeKey/);
   assert.match(adSlot, /zone\.dataset\.processed === "true"/);
   assert.match(adSlot, /host\.replaceChildren\(zone\)/);
   assert.match(adSlot, /scheduleServe\(\)/);
   assert.match(adSlot, /hasRenderedCreative/);
+  assert.match(adSlot, /creativeDisplayed-/);
+  assert.match(adSlot, /format === "overlay" \? undefined/);
   assert.doesNotMatch(adSlot, /servedOverlayZoneRef|RETRY_AFTER_MS|mountZone\(true\)/);
   assert.doesNotMatch(adSlot, /data-ex_av/);
   assert.match(globalFormats, /device === "desktop" && <AdSlot active=\{monetizedRoute\} placement="desktop-sticky"/);
@@ -353,13 +359,22 @@ test("keeps ExoClick configuration valid and uses a fresh document lifecycle for
   assert.match(catalog, /navigation\/revenue-link/);
   assert.match(catalogFilters, /window\.location\.assign/);
   assert.match(liveSearch, /window\.location\.assign/);
+  assert.match(liveSearch, /placement="search-compact"/);
+  assert.match(drawer, /placement="drawer-compact"/);
   assert.match(directory, /placement="catalog-top"/);
+  assert.match(directory, /placement="catalog-footer"/);
+  assert.match(catalog, /placement="catalog-footer"/);
+  assert.match(watchPage, /placement="watch-footer"/);
   assert.match(layout, /<GlobalAdFormats \/>/);
   assert.doesNotMatch(layout, /AdRouteSync/);
   assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_BLOCK_AD_TYPES=/);
   assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_MOBILE_FPI_ZONE_ID=/);
   assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_MOBILE_INSTANT_ZONE_ID=/);
   assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_MOBILE_POPUNDER_ZONE_ID=/);
+  assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_DRAWER_MOBILE_ZONE_ID=/);
+  assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_SEARCH_MOBILE_ZONE_ID=/);
+  assert.match(css, /\.ad-slot:not\(\.ad-slot-overlay\) iframe/);
+  assert.match(css, /\.ad-slot-overlay \.ad-zone-host \{ width:auto; max-width:none/);
   assert.doesNotMatch(adSlot, /\|\| "101"/);
   assert.match(productionCheck, /Advertising is enabled but configuration is incomplete/);
   assert.match(productionCheck, /optionalPlacements/);
@@ -368,7 +383,6 @@ test("keeps ExoClick configuration valid and uses a fresh document lifecycle for
   assert.doesNotMatch(favicon, /M27 18v27h17|LUMA/i);
   assert.match(socialImage, /ACTREXX/);
   assert.doesNotMatch(socialImage, /LUMA/i);
-  const watchPage = await source("app/watch/[slug]/page.tsx");
   const chrome = await source("components/site-chrome.tsx");
   assert.match(watchPage, /placement="below-player"/);
   assert.match(watchPage, /placement="watch-outstream"/);

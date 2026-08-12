@@ -38,6 +38,7 @@ export function EntityDirectory({ title, description, entries, total, page, page
           </div>
         ) : <div className="empty-state"><h2>No matching entries</h2><Link href={basePath}>Clear filters</Link></div>}
         <Pagination page={page} total={total} basePath={paginationPath} pageSize={pageSize} />
+        <div className="content-end-ad"><AdSlot placement="catalog-footer" /></div>
       </section>
       <Sidebar />
     </main>

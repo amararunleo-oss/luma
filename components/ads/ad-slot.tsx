@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-export type Placement = "catalog-top" | "sidebar" | "below-player" | "watch-outstream" | "desktop-sticky" | "catalog-instant" | "watch-slider" | "fullpage";
+export type Placement = "catalog-top" | "catalog-footer" | "watch-footer" | "sidebar" | "below-player" | "watch-outstream" | "drawer-compact" | "search-compact" | "desktop-sticky" | "catalog-instant" | "watch-slider" | "fullpage";
 type ZoneConfig = { zoneId?: string; className?: string; format: string; provider?: string };
 type Device = "mobile" | "desktop";
 
@@ -14,6 +14,16 @@ declare global {
 
 const desktopPlacements: Record<Placement, ZoneConfig> = {
   "catalog-top": {
+    zoneId: process.env.NEXT_PUBLIC_EXOCLICK_CATALOG_ZONE_ID,
+    className: process.env.NEXT_PUBLIC_EXOCLICK_CATALOG_CLASS,
+    format: "leaderboard",
+  },
+  "catalog-footer": {
+    zoneId: process.env.NEXT_PUBLIC_EXOCLICK_PLAYER_ZONE_ID,
+    className: process.env.NEXT_PUBLIC_EXOCLICK_PLAYER_CLASS,
+    format: "leaderboard",
+  },
+  "watch-footer": {
     zoneId: process.env.NEXT_PUBLIC_EXOCLICK_CATALOG_ZONE_ID,
     className: process.env.NEXT_PUBLIC_EXOCLICK_CATALOG_CLASS,
     format: "leaderboard",
@@ -32,6 +42,14 @@ const desktopPlacements: Record<Placement, ZoneConfig> = {
     zoneId: process.env.NEXT_PUBLIC_EXOCLICK_OUTSTREAM_ZONE_ID,
     className: process.env.NEXT_PUBLIC_EXOCLICK_OUTSTREAM_CLASS,
     format: "outstream",
+  },
+  "drawer-compact": {
+    format: "compact",
+  },
+  "search-compact": {
+    zoneId: process.env.NEXT_PUBLIC_EXOCLICK_SEARCH_ZONE_ID,
+    className: process.env.NEXT_PUBLIC_EXOCLICK_SEARCH_CLASS,
+    format: "compact",
   },
   "desktop-sticky": {
     zoneId: process.env.NEXT_PUBLIC_EXOCLICK_STICKY_ZONE_ID,
@@ -62,10 +80,30 @@ const mobilePlacements: Partial<Record<Placement, ZoneConfig>> = {
     className: process.env.NEXT_PUBLIC_EXOCLICK_CATALOG_MOBILE_CLASS,
     format: "leaderboard",
   },
+  "catalog-footer": {
+    zoneId: process.env.NEXT_PUBLIC_EXOCLICK_PLAYER_MOBILE_ZONE_ID,
+    className: process.env.NEXT_PUBLIC_EXOCLICK_PLAYER_MOBILE_CLASS,
+    format: "leaderboard",
+  },
+  "watch-footer": {
+    zoneId: process.env.NEXT_PUBLIC_EXOCLICK_CATALOG_MOBILE_ZONE_ID,
+    className: process.env.NEXT_PUBLIC_EXOCLICK_CATALOG_MOBILE_CLASS,
+    format: "leaderboard",
+  },
   "below-player": {
     zoneId: process.env.NEXT_PUBLIC_EXOCLICK_PLAYER_MOBILE_ZONE_ID,
     className: process.env.NEXT_PUBLIC_EXOCLICK_PLAYER_MOBILE_CLASS,
     format: "leaderboard",
+  },
+  "drawer-compact": {
+    zoneId: process.env.NEXT_PUBLIC_EXOCLICK_DRAWER_MOBILE_ZONE_ID,
+    className: process.env.NEXT_PUBLIC_EXOCLICK_DRAWER_MOBILE_CLASS,
+    format: "compact",
+  },
+  "search-compact": {
+    zoneId: process.env.NEXT_PUBLIC_EXOCLICK_SEARCH_MOBILE_ZONE_ID,
+    className: process.env.NEXT_PUBLIC_EXOCLICK_SEARCH_MOBILE_CLASS,
+    format: "compact",
   },
   "catalog-instant": {
     zoneId: process.env.NEXT_PUBLIC_EXOCLICK_MOBILE_INSTANT_ZONE_ID,
@@ -215,6 +253,9 @@ export function AdSlot({ placement, active = true }: { placement: Placement; act
     };
     const observer = new MutationObserver(updateStatus);
     observer.observe(host, { attributes: true, childList: true, subtree: true });
+    const creativeEvent = `creativeDisplayed-${zoneId}`;
+    const creativeDisplayed = () => { if (alive) setStatus("loaded"); };
+    if (format === "overlay") document.addEventListener(creativeEvent, creativeDisplayed);
 
     const connectProvider = () => {
       if (!alive || !zone?.isConnected) return;
@@ -235,22 +276,23 @@ export function AdSlot({ placement, active = true }: { placement: Placement; act
 
     connectProvider();
     updateStatus();
-    const emptyTimer = window.setTimeout(() => {
+    const emptyTimer = format === "overlay" ? undefined : window.setTimeout(() => {
       if (alive && zone) setStatus(hasRenderedCreative(host, zone, format) ? "loaded" : "empty");
     }, EMPTY_AFTER_MS);
 
     return () => {
       alive = false;
-      window.clearTimeout(emptyTimer);
+      if (emptyTimer !== undefined) window.clearTimeout(emptyTimer);
       if (providerRetryTimer !== undefined) window.clearTimeout(providerRetryTimer);
+      if (format === "overlay") document.removeEventListener(creativeEvent, creativeDisplayed);
       observer.disconnect();
     };
   }, [active, className, device, format, provider, readyToServe, zoneId]);
 
-  if (!adsEnabled || (device && !validZone({ zoneId, className }))) return null;
+  if (!adsEnabled || !device || failed || status === "empty" || !validZone({ zoneId, className })) return null;
 
   return (
-    <div className={`ad-slot ad-slot-${format}`} data-active={active} data-device={device || "pending"} data-placement={placement} data-state={failed ? "failed" : status} ref={containerRef}>
+    <div className={`ad-slot ad-slot-${format}`} data-active={active} data-device={device} data-placement={placement} data-state={failed ? "failed" : status} ref={containerRef}>
       {format !== "overlay" && <span>Advertisement</span>}
       <div className="ad-zone-host" ref={zoneHostRef} />
     </div>

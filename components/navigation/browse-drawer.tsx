@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { SITE } from "@/lib/site";
+import { AdSlot } from "@/components/ads/ad-slot";
 
 const sections = [
   { label: "Latest", description: "New movie and TV scenes", href: "/", icon: Sparkles },
@@ -123,6 +124,7 @@ export function BrowseDrawer() {
             </details>
           </div>
         </nav>
+        <div className="drawer-ad"><AdSlot active={open} placement="drawer-compact" /></div>
         <footer><Tags size={15} aria-hidden="true" /><p>Search by actress, movie, TV show or scene.</p></footer>
       </aside>
     </div>

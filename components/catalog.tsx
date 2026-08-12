@@ -119,6 +119,7 @@ export function CatalogPage({
           <div className="empty-state"><h2>No matching scenes</h2><Link href="/">Return home</Link></div>
         )}
         {showPagination && <Pagination page={safePage} total={totalItems} basePath={basePath} pageSize={pageSize} />}
+        <div className="content-end-ad"><AdSlot placement="catalog-footer" /></div>
       </section>
       <Sidebar />
     </main>

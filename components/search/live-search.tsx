@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { AlertCircle, Film, LoaderCircle, Play, Search, Tv, UserRound, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SearchSuggestion, SearchSuggestions } from "@/lib/catalog/repository";
+import { AdSlot } from "@/components/ads/ad-slot";
 
 const groupDetails = {
   videos: { label: "Videos", icon: Play },
@@ -207,6 +208,7 @@ export function LiveSearch() {
           })}
           {!loading && requestError && <div className="search-empty search-failed"><AlertCircle size={18} aria-hidden="true" /><strong>Search is temporarily unavailable</strong><span>Wait a moment and try again.</span></div>}
           {!loading && !requestError && !hasResults && <div className="search-empty"><strong>No matches found</strong><span>Try a different actress, movie or TV show.</span></div>}
+          {hasResults && <div className="search-ad" role="presentation"><AdSlot active={open} placement="search-compact" /></div>}
           <Link className="search-view-all" href={`/search?q=${encodeURIComponent(query.trim())}`} onClick={() => setOpen(false)}>View all results</Link>
         </div>
       )}

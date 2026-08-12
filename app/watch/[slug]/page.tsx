@@ -137,6 +137,7 @@ export default async function WatchPage({ params }: { params: Promise<{ slug: st
               <div className="video-grid related-grid">{related.map((item) => <VideoCard video={item} key={item.id} />)}</div>
             </section>
           )}
+          <div className="content-end-ad watch-end-ad"><AdSlot placement="watch-footer" /></div>
         </article>
         <Sidebar />
       </main>
