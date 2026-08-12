@@ -293,10 +293,11 @@ test("publishes complete VideoObject data only on canonical watch pages", async 
 });
 
 test("keeps ExoClick configuration valid and uses a fresh document lifecycle for monetized navigation", async () => {
-  const [adSlot, globalFormats, mobilePopunder, revenueLink, catalog, catalogFilters, liveSearch, drawer, directory, watchPage, layout, css, envExample, productionCheck, adCheck, adsTxtRoute, favicon, socialImage] = await Promise.all([
+  const [adSlot, globalFormats, mobilePopunder, desktopPopunder, revenueLink, catalog, catalogFilters, liveSearch, drawer, directory, watchPage, layout, css, envExample, productionCheck, adCheck, adsTxtRoute, favicon, socialImage] = await Promise.all([
     source("components/ads/ad-slot.tsx"),
     source("components/ads/global-ad-formats.tsx"),
     source("components/ads/mobile-popunder.tsx"),
+    source("components/ads/desktop-popunder.tsx"),
     source("components/navigation/revenue-link.tsx"),
     source("components/catalog.tsx"),
     source("components/catalog-filters.tsx"),
@@ -354,14 +355,22 @@ test("keeps ExoClick configuration valid and uses a fresh document lifecycle for
   assert.match(globalFormats, /placement="watch-slider"/);
   assert.match(globalFormats, /device === "desktop" && <AdSlot active=\{isWatch\} placement="watch-slider"/);
   assert.match(globalFormats, /<MobilePopunder \/>/);
+  assert.match(globalFormats, /device === "desktop" && <DesktopPopunder \/>/);
   assert.match(globalFormats, /placement="fullpage"/);
   assert.match(mobilePopunder, /NEXT_PUBLIC_EXOCLICK_MOBILE_POPUNDER_ZONE_ID/);
   assert.match(mobilePopunder, /a\.pemsrv\.com\/popunder1000\.js/);
   assert.match(mobilePopunder, /actrexx-mobile-pop/);
   assert.match(mobilePopunder, /matchMedia\("\(max-width: 820px\)"\)/);
   assert.match(mobilePopunder, /script\.addEventListener\("error"/);
+  assert.match(desktopPopunder, /NEXT_PUBLIC_EXOCLICK_DESKTOP_POPUNDER_ZONE_ID/);
+  assert.match(desktopPopunder, /NEXT_PUBLIC_EXOCLICK_DESKTOP_POPUNDER_FREQUENCY_PERIOD \|\| "10"/);
+  assert.match(desktopPopunder, /NEXT_PUBLIC_EXOCLICK_DESKTOP_POPUNDER_FREQUENCY_COUNT \|\| "3"/);
+  assert.match(desktopPopunder, /matchMedia\("\(min-width: 821px\)"\)/);
+  assert.match(desktopPopunder, /actrexx-desktop-pop/);
+  assert.match(desktopPopunder, /a\.pemsrv\.com\/popunder1000\.js/);
   assert.match(revenueLink, /return <a/);
   assert.match(revenueLink, /actrexx-mobile-pop/);
+  assert.match(revenueLink, /actrexx-desktop-pop/);
   assert.doesNotMatch(revenueLink, /next\/link/);
   assert.match(catalog, /navigation\/revenue-link/);
   assert.match(catalogFilters, /window\.location\.assign/);
@@ -378,6 +387,7 @@ test("keeps ExoClick configuration valid and uses a fresh document lifecycle for
   assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_MOBILE_FPI_ZONE_ID=/);
   assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_MOBILE_INSTANT_ZONE_ID=/);
   assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_MOBILE_POPUNDER_ZONE_ID=/);
+  assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_DESKTOP_POPUNDER_ZONE_ID=/);
   assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_DRAWER_MOBILE_ZONE_ID=/);
   assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_SEARCH_MOBILE_ZONE_ID=/);
   assert.match(css, /\.ad-slot:not\(\.ad-slot-overlay\) iframe/);

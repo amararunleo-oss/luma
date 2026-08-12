@@ -23,6 +23,10 @@ const mobilePopunder = process.env.NEXT_PUBLIC_EXOCLICK_MOBILE_POPUNDER_ZONE_ID?
 if (!mobilePopunder) warnings.push("mobile_popunder placement is not configured");
 else if (!/^\d+$/.test(mobilePopunder)) issues.push("mobile_popunder zone ID is invalid");
 
+const desktopPopunder = process.env.NEXT_PUBLIC_EXOCLICK_DESKTOP_POPUNDER_ZONE_ID?.trim();
+if (!desktopPopunder) warnings.push("desktop_popunder placement is not configured");
+else if (!/^\d+$/.test(desktopPopunder)) issues.push("desktop_popunder zone ID is invalid");
+
 for (const placement of optionalPlacements) {
   const zone = process.env[`NEXT_PUBLIC_EXOCLICK_${placement}_ZONE_ID`]?.trim();
   const className = process.env[`NEXT_PUBLIC_EXOCLICK_${placement}_CLASS`]?.trim();

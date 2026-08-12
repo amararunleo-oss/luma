@@ -14,6 +14,6 @@ type RevenueLinkProps = Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "href"> & 
  * while still allowing click-triggered formats to observe the original click.
  */
 export default function RevenueLink({ href, className, adTrigger = true, children, ...props }: RevenueLinkProps) {
-  const classes = [className, adTrigger ? "actrexx-mobile-pop" : ""].filter(Boolean).join(" ");
+  const classes = [className, adTrigger ? "actrexx-mobile-pop actrexx-desktop-pop" : ""].filter(Boolean).join(" ");
   return <a {...props} className={classes || undefined} href={href}>{children}</a>;
 }

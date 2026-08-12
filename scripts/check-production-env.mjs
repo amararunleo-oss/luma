@@ -87,6 +87,18 @@ if (process.env.NEXT_PUBLIC_ADS_ENABLED === "true") {
     process.exit(1);
   }
 
+  const desktopPopunderZone = process.env.NEXT_PUBLIC_EXOCLICK_DESKTOP_POPUNDER_ZONE_ID?.trim();
+  const desktopPopunderPeriod = process.env.NEXT_PUBLIC_EXOCLICK_DESKTOP_POPUNDER_FREQUENCY_PERIOD?.trim();
+  const desktopPopunderCount = process.env.NEXT_PUBLIC_EXOCLICK_DESKTOP_POPUNDER_FREQUENCY_COUNT?.trim();
+  if (desktopPopunderZone && !/^\d+$/.test(desktopPopunderZone)) {
+    console.error("NEXT_PUBLIC_EXOCLICK_DESKTOP_POPUNDER_ZONE_ID must be numeric.");
+    process.exit(1);
+  }
+  if ((desktopPopunderPeriod && (!/^\d+$/.test(desktopPopunderPeriod) || Number(desktopPopunderPeriod) < 1)) || (desktopPopunderCount && (!/^\d+$/.test(desktopPopunderCount) || Number(desktopPopunderCount) < 1))) {
+    console.error("Desktop popunder frequency period and count must be positive integers.");
+    process.exit(1);
+  }
+
   if (!process.env.ADS_TXT?.trim()) {
     console.warn("ADS_TXT is not configured; /ads.txt will return 404 until authorized seller records are supplied.");
   }
