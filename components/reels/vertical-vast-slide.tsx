@@ -154,8 +154,7 @@ export function VerticalVastSlide({ checkpoint, vastTag, onUnavailable }: { chec
       completedRef.current = true;
       tracker.complete();
     }
-    video.currentTime = 0;
-    void video.play();
+    onUnavailable(checkpoint);
   };
 
   const toggleMuted = () => {
@@ -211,7 +210,7 @@ export function VerticalVastSlide({ checkpoint, vastTag, onUnavailable }: { chec
         <p>{adDescription}</p>
         <button type="button" onClick={openAdvertiser}>Learn more<ExternalLink size={14} aria-hidden="true" /></button>
       </div>
-      <span className="vertical-vast-swipe">Swipe for the next scene</span>
+      <span className="vertical-vast-swipe">Skip to continue</span>
     </div>
   );
 }

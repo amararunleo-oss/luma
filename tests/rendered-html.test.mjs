@@ -450,9 +450,13 @@ test("keeps vertical reels isolated, bounded, and VAST-enabled", async () => {
   assert.match(feed, /index === activeIndex && <VerticalVastSlide/);
   assert.match(feed, /key=\{`reels-instant-\$\{activeIndex\}`\} placement="catalog-instant"/);
   assert.match(feed, /Math\.abs\(index - activeIndex\) <= 1/);
+  assert.match(feed, /reels-feed-locked/);
+  assert.match(feed, /if \(adActive && \["ArrowDown", "PageDown", "ArrowUp", "PageUp", " "\]/);
+  assert.match(feed, /Swipe up to explore/);
   assert.match(vast, /import\("@dailymotion\/vast-client"\)/);
   assert.match(vast, /trackImpression\(\)/);
   assert.match(vast, /VERTICAL_AD_CAP_MS = 3 \* 60/);
+  assert.match(vast, /onUnavailable\(checkpoint\);/);
   assert.doesNotMatch(page, /<SiteHeader/);
   assert.match(home, /beforeHeading=\{<PopularNow videos=\{popular\} \/>\}/);
   assert.match(repository, /export async function getPopularVideos\(limit = 100\)/);

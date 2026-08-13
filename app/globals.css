@@ -647,8 +647,9 @@ footer { background: white; border-top: 1px solid var(--line); }
 /* Popular vertical reels. Ad playback is intentionally scoped to this route. */
 .reels-page { width:100vw; height:100vh; height:100dvh; position:fixed; z-index:90; inset:0; overflow:hidden; background:radial-gradient(circle at 50% 8%,#26161f 0,transparent 36%),#080608; color:#fff; overscroll-behavior:none; }
 .reels-layout { width:100%; height:100%; margin:0 auto; display:grid; place-items:center; }
-.reels-stage { width:min(100vw,1180px); height:100%; position:relative; border-inline:1px solid rgba(255,255,255,.11); background:#050405; box-shadow:0 38px 100px rgba(0,0,0,.55); overflow:hidden; }
+.reels-stage { width:min(100vw,560px); height:100%; position:relative; border-inline:1px solid rgba(255,255,255,.11); background:#050405; box-shadow:0 38px 100px rgba(0,0,0,.55); overflow:hidden; }
 .reels-feed { width:100%; height:100%; overflow-x:hidden; overflow-y:auto; background:#050405; scroll-behavior:smooth; scroll-snap-type:y mandatory; overscroll-behavior-y:contain; scrollbar-width:none; touch-action:pan-y; }
+.reels-feed-locked { overflow-y:hidden; scroll-behavior:auto; touch-action:none; overscroll-behavior:none; }
 .reels-feed::-webkit-scrollbar { display:none; }
 .reel-slide { width:100%; height:100%; position:relative; overflow:hidden; background:#050405; scroll-snap-align:start; scroll-snap-stop:always; }
 .reel-scene, .vertical-vast-slide { width:100%; height:100%; position:relative; overflow:hidden; }
@@ -666,10 +667,11 @@ footer { background: white; border-top: 1px solid var(--line); }
 .reel-scene-copy > span i { width:2px; height:2px; flex:none; border-radius:50%; background:#787176; }
 .reel-scene-copy > a { width:max-content; margin-top:17px; display:flex; align-items:center; gap:6px; color:#fff; font-size:9px; font-weight:700; }
 .reel-scene-copy > a:hover { color:#ff6b91; }
-.reels-swipe-guide { min-width:160px; min-height:52px; padding:0 19px; position:absolute; z-index:10; bottom:max(28px,env(safe-area-inset-bottom)); left:50%; display:grid; place-content:center; justify-items:center; gap:8px; border:1px solid rgba(255,255,255,.22); border-radius:28px; background:rgba(9,6,8,.82); color:#fff; font-size:9px; font-weight:760; letter-spacing:.065em; pointer-events:none; -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); box-shadow:0 12px 40px rgba(0,0,0,.35); transform:translateX(-50%); animation:reels-guide-dismiss 10s cubic-bezier(.2,.7,.2,1) forwards; }
-.reels-swipe-guide i { width:28px; height:1px; position:relative; overflow:visible; background:rgba(255,255,255,.28); }
-.reels-swipe-guide i::after { content:""; width:6px; height:6px; position:absolute; top:-3px; left:0; border-radius:50%; background:#fff; animation:reels-guide-sweep 1.1s ease-in-out 2; }
-@keyframes reels-guide-sweep { 0% { left:0; opacity:.3; } 50% { opacity:1; } 100% { left:22px; opacity:.3; } }
+.reels-swipe-guide { min-width:160px; min-height:68px; padding:9px 19px 10px; position:absolute; z-index:10; bottom:max(28px,env(safe-area-inset-bottom)); left:50%; display:grid; place-content:center; justify-items:center; gap:7px; border:1px solid rgba(255,255,255,.22); border-radius:34px; background:rgba(9,6,8,.82); color:#fff; font-size:9px; font-weight:760; letter-spacing:.065em; pointer-events:none; -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); box-shadow:0 12px 40px rgba(0,0,0,.35); transform:translateX(-50%); animation:reels-guide-dismiss 10s cubic-bezier(.2,.7,.2,1) forwards; }
+.reels-swipe-guide i { width:1px; height:28px; position:relative; overflow:visible; background:rgba(255,255,255,.28); }
+.reels-swipe-guide i::before { content:""; width:7px; height:7px; position:absolute; bottom:-1px; left:-3px; border-right:1.5px solid #fff; border-bottom:1.5px solid #fff; transform:rotate(45deg); }
+.reels-swipe-guide i::after { content:""; width:6px; height:6px; position:absolute; right:-2.5px; bottom:1px; border-radius:50%; background:#fff; animation:reels-guide-sweep 1.1s ease-in-out 3; }
+@keyframes reels-guide-sweep { 0% { bottom:1px; opacity:.3; } 50% { opacity:1; } 100% { bottom:21px; opacity:.3; } }
 @keyframes reels-guide-dismiss { 0%,78% { opacity:1; visibility:visible; transform:translateX(-50%) translateY(0); } 100% { opacity:0; visibility:hidden; transform:translateX(-50%) translateY(10px); } }
 .reels-progress { width:2px; height:56px; position:absolute; z-index:9; top:50%; left:-15px; overflow:hidden; background:rgba(255,255,255,.12); transform:translateY(-50%); }
 .reels-progress span { width:100%; height:var(--reels-progress); position:absolute; bottom:0; left:0; background:#ff416f; transition:height .28s ease; }

@@ -66,6 +66,7 @@ export function ReelsFeed({ videos, vastTag }: { videos: ReelVideo[]; vastTag?: 
   const [activeIndex, setActiveIndex] = useState(0);
   const [skippedAds, setSkippedAds] = useState<Set<number>>(() => new Set());
   const items = useMemo(() => buildFeed(videos, Boolean(vastTag)), [vastTag, videos]);
+  const adActive = items[activeIndex]?.kind === "ad" && !skippedAds.has(activeIndex);
 
   const registerSlide = useCallback((index: number, element: HTMLElement | null) => {
     if (element) slidesRef.current.set(index, element);
@@ -129,6 +130,10 @@ export function ReelsFeed({ videos, vastTag }: { videos: ReelVideo[]; vastTag?: 
     const handleKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       if (target?.matches("input, textarea, select, [contenteditable='true']")) return;
+      if (adActive && ["ArrowDown", "PageDown", "ArrowUp", "PageUp", " "].includes(event.key)) {
+        event.preventDefault();
+        return;
+      }
       if (["ArrowDown", "PageDown"].includes(event.key)) {
         event.preventDefault();
         scrollToIndex(activeIndex + 1, 1);
@@ -140,7 +145,15 @@ export function ReelsFeed({ videos, vastTag }: { videos: ReelVideo[]; vastTag?: 
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeIndex, scrollToIndex]);
+  }, [activeIndex, adActive, scrollToIndex]);
+
+  useEffect(() => {
+    if (!adActive) return;
+    const root = feedRef.current;
+    const slide = slidesRef.current.get(activeIndex);
+    if (!root || !slide) return;
+    root.scrollTo({ top: slide.offsetTop, behavior: "auto" });
+  }, [activeIndex, adActive]);
 
   const currentVideoPosition = (() => {
     const current = items[activeIndex];
@@ -159,7 +172,7 @@ export function ReelsFeed({ videos, vastTag }: { videos: ReelVideo[]; vastTag?: 
   return (
     <div className="reels-stage">
       <div className="reels-progress" aria-hidden="true" style={{ "--reels-progress": progress } as React.CSSProperties}><span /></div>
-      <div className="reels-feed" ref={feedRef} role="region" aria-label="Popular video reels">
+      <div className={`reels-feed${adActive ? " reels-feed-locked" : ""}`} ref={feedRef} role="region" aria-label="Popular video reels">
         {items.map((item, index) => {
           const skipped = skippedAds.has(index);
           return (
@@ -178,7 +191,7 @@ export function ReelsFeed({ videos, vastTag }: { videos: ReelVideo[]; vastTag?: 
           );
         })}
       </div>
-      <div className="reels-swipe-guide" aria-hidden="true"><span>Swipe to explore</span><i /></div>
+      <div className="reels-swipe-guide" aria-hidden="true"><i /><span>Swipe up to explore</span></div>
       {activeIndex > 0 && items[activeIndex]?.kind === "video" && <AdSlot active key={`reels-instant-${activeIndex}`} placement="catalog-instant" />}
     </div>
   );
