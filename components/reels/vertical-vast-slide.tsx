@@ -4,9 +4,6 @@ import { ExternalLink, Play, SkipForward, Volume2, VolumeX } from "lucide-react"
 import { useEffect, useRef, useState } from "react";
 import type { VASTTracker } from "@dailymotion/vast-client";
 
-const VERTICAL_AD_CAP_MS = 1 * 60 * 1_000;
-const CAP_STORAGE_KEY = "actrexx:vertical-vast:last-impression";
-
 type VastMedia = {
   fileURL?: string;
   mimeType?: string;
@@ -27,21 +24,6 @@ type VastAd = {
   description?: string;
   creatives?: VastCreative[];
 };
-
-function eligibleBySessionCap() {
-  try {
-    const last = Number(window.sessionStorage.getItem(CAP_STORAGE_KEY));
-    return !Number.isFinite(last) || Date.now() - last >= VERTICAL_AD_CAP_MS;
-  } catch {
-    return true;
-  }
-}
-
-function rememberImpression() {
-  try {
-    window.sessionStorage.setItem(CAP_STORAGE_KEY, String(Date.now()));
-  } catch { /* storage can be unavailable in private browsing */ }
-}
 
 function selectMedia(creative: VastCreative) {
   return [...(creative.mediaFiles ?? [])]
@@ -73,10 +55,10 @@ export function VerticalVastSlide({ checkpoint, vastTag, onUnavailable }: { chec
     let alive = true;
     let tracker: VASTTracker | null = null;
     const unavailable = window.setTimeout(() => {
-      if (!vastTag || !eligibleBySessionCap()) onUnavailable(checkpoint);
+      if (!vastTag) onUnavailable(checkpoint);
     }, 80);
 
-    if (vastTag && eligibleBySessionCap()) {
+    if (vastTag) {
       window.clearTimeout(unavailable);
       const loadAd = async () => {
         try {
@@ -97,7 +79,9 @@ export function VerticalVastSlide({ checkpoint, vastTag, onUnavailable }: { chec
           });
           trackerRef.current = tracker;
           const vastSkipDelay = Number(tracker.skipDelay);
-          setSkipSeconds(Number.isFinite(vastSkipDelay) && vastSkipDelay >= 0 ? Math.min(Math.ceil(vastSkipDelay), 7) : 5);
+          // ExoClick's VAST skipDelay is authoritative. Configure this zone to
+          // 10 seconds in the publisher dashboard; use 10 only as a safe fallback.
+          setSkipSeconds(Number.isFinite(vastSkipDelay) && vastSkipDelay >= 0 ? Math.ceil(vastSkipDelay) : 10);
           setAdTitle(String(ad.adTitle || ad.title || "Sponsored video"));
           setAdDescription(String(ad.description || "Swipe to continue"));
           setMediaUrl(media.fileURL);
@@ -141,7 +125,6 @@ export function VerticalVastSlide({ checkpoint, vastTag, onUnavailable }: { chec
     const tracker = trackerRef.current;
     if (!tracker || impressedRef.current) return;
     impressedRef.current = true;
-    rememberImpression();
     tracker.trackImpression();
     tracker.trackViewableImpression({}, true);
   };
@@ -202,7 +185,7 @@ export function VerticalVastSlide({ checkpoint, vastTag, onUnavailable }: { chec
         {muted ? <VolumeX size={17} /> : <Volume2 size={17} />}
       </button>
       <button className="vertical-vast-skip" type="button" disabled={skipSeconds === null || skipSeconds > 0} onClick={skipAdvert}>
-        {skipSeconds === null || skipSeconds > 0 ? `Skip in ${skipSeconds ?? 5}` : <>Skip ad<SkipForward size={14} aria-hidden="true" /></>}
+        {skipSeconds === null || skipSeconds > 0 ? `Skip in ${skipSeconds ?? 10}` : <>Skip ad<SkipForward size={14} aria-hidden="true" /></>}
       </button>
       <div className="vertical-vast-copy">
         <span>Sponsored</span>

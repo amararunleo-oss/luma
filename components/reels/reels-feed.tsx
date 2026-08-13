@@ -14,7 +14,7 @@ type FeedVideo = { kind: "video"; video: ReelVideo; position: number };
 type FeedAd = { kind: "ad"; checkpoint: number };
 type FeedItem = FeedVideo | FeedAd;
 
-const AD_INTERVAL = 6;
+const AD_INTERVAL = 3;
 
 function buildFeed(videos: ReelVideo[], includeAds: boolean): FeedItem[] {
   const items: FeedItem[] = [];
@@ -87,6 +87,7 @@ function ReelScene({ active, video }: { active: boolean; video: ReelVideo }) {
 export function ReelsFeed({ videos, vastTag }: { videos: ReelVideo[]; vastTag?: string }) {
   const feedRef = useRef<HTMLDivElement>(null);
   const slidesRef = useRef(new Map<number, HTMLElement>());
+  const activeIndexRef = useRef(0);
   const [activeIndex, setActiveIndex] = useState(0);
   const [skippedAds, setSkippedAds] = useState<Set<number>>(() => new Set());
   const items = useMemo(() => buildFeed(videos, Boolean(vastTag)), [vastTag, videos]);
@@ -130,7 +131,23 @@ export function ReelsFeed({ videos, vastTag }: { videos: ReelVideo[]; vastTag?: 
         .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
       if (!visible || visible.intersectionRatio < 0.55) return;
       const index = Number((visible.target as HTMLElement).dataset.reelIndex);
-      if (Number.isInteger(index)) setActiveIndex(index);
+      if (!Number.isInteger(index)) return;
+
+      // A fast momentum swipe can visually cross multiple snap points. Always
+      // stop at the first unserved ad checkpoint between the old and new reel.
+      const current = activeIndexRef.current;
+      if (index > current) {
+        const pendingAd = items.findIndex((item, itemIndex) => itemIndex > current && itemIndex <= index && item.kind === "ad" && !skippedAds.has(itemIndex));
+        if (pendingAd >= 0) {
+          activeIndexRef.current = pendingAd;
+          setActiveIndex(pendingAd);
+          const adSlide = slidesRef.current.get(pendingAd);
+          if (adSlide) root.scrollTo({ top: adSlide.offsetTop, behavior: "auto" });
+          return;
+        }
+      }
+      activeIndexRef.current = index;
+      setActiveIndex(index);
     }, { root, threshold: [0.55, 0.72, 0.9] });
     slidesRef.current.forEach((element, index) => {
       if (!skippedAds.has(index)) observer.observe(element);
@@ -148,6 +165,7 @@ export function ReelsFeed({ videos, vastTag }: { videos: ReelVideo[]; vastTag?: 
     if (targetIndex < 0 || !root) return;
     const frame = window.requestAnimationFrame(() => {
       root.scrollTo({ top: targetIndex * root.clientHeight, behavior: "auto" });
+      activeIndexRef.current = targetIndex;
       setActiveIndex(targetIndex);
     });
     return () => window.cancelAnimationFrame(frame);
