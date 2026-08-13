@@ -357,16 +357,16 @@ test("keeps ExoClick configuration valid and uses a fresh document lifecycle for
   assert.doesNotMatch(adSlot, /servedOverlayZoneRef|RETRY_AFTER_MS|mountZone\(true\)/);
   assert.doesNotMatch(adSlot, /data-ex_av/);
   assert.match(globalFormats, /const publicPage = !pathname\.startsWith\("\/admin"\)/);
-  assert.match(globalFormats, /const instantActive = publicPage/);
+  assert.match(globalFormats, /const instantActive = publicPage && !isReels/);
   assert.match(globalFormats, /const fullpageActive = device === "mobile" \? isWatch : monetizedRoute/);
   assert.match(globalFormats, /device === "desktop" && <AdSlot active=\{monetizedRoute\} key=\{`sticky-\$\{pathname\}`\} placement="desktop-sticky"/);
-  assert.match(globalFormats, /<AdSlot active=\{instantActive\} key=\{`instant-\$\{pathname\}`\} placement="catalog-instant"/);
+  assert.match(globalFormats, /!isReels && <AdSlot active=\{instantActive\} key=\{`instant-\$\{pathname\}`\} placement="catalog-instant"/);
   assert.doesNotMatch(globalFormats, /directoryRoutes/);
   assert.match(globalFormats, /placement="catalog-instant"/);
   assert.match(globalFormats, /placement="watch-slider"/);
   assert.match(globalFormats, /device === "desktop" && <AdSlot active=\{isWatch\} key=\{`slider-\$\{pathname\}`\} placement="watch-slider"/);
   assert.match(globalFormats, /device === "mobile" && isCatalog && <MobilePopunder \/>/);
-  assert.match(globalFormats, /device === "desktop" && <DesktopPopunder \/>/);
+  assert.match(globalFormats, /device === "desktop" && !isReels && <DesktopPopunder \/>/);
   assert.match(globalFormats, /active=\{fullpageActive\} key=\{`fullpage-\$\{pathname\}`\} placement="fullpage"/);
   assert.match(mobilePopunder, /NEXT_PUBLIC_EXOCLICK_MOBILE_POPUNDER_ZONE_ID/);
   assert.match(mobilePopunder, /a\.pemsrv\.com\/popunder1000\.js/);
@@ -431,4 +431,31 @@ test("keeps ExoClick configuration valid and uses a fresh document lifecycle for
   assert.match(watchPage, /placement="below-player"/);
   assert.match(watchPage, /placement="watch-outstream"/);
   assert.ok(chrome.indexOf('placement="sidebar"') < chrome.indexOf("Popular actresses"));
+});
+
+test("keeps vertical reels isolated, bounded, and VAST-enabled", async () => {
+  const [page, feed, vast, home, repository, envExample, sitemap] = await Promise.all([
+    source("app/reels/page.tsx"),
+    source("components/reels/reels-feed.tsx"),
+    source("components/reels/vertical-vast-slide.tsx"),
+    source("app/page.tsx"),
+    source("lib/catalog/repository.ts"),
+    source(".env.example"),
+    source("lib/sitemaps.ts"),
+  ]);
+
+  assert.match(page, /getPopularVideos\(200\)/);
+  assert.match(page, /NEXT_PUBLIC_EXOCLICK_VERTICAL_VAST_TAG_URL/);
+  assert.match(feed, /const AD_INTERVAL = 5/);
+  assert.match(feed, /index === activeIndex && <VerticalVastSlide/);
+  assert.match(feed, /key=\{`reels-instant-\$\{activeIndex\}`\} placement="catalog-instant"/);
+  assert.match(feed, /Math\.abs\(index - activeIndex\) <= 1/);
+  assert.match(vast, /import\("@dailymotion\/vast-client"\)/);
+  assert.match(vast, /trackImpression\(\)/);
+  assert.match(vast, /VERTICAL_AD_CAP_MS = 3 \* 60/);
+  assert.doesNotMatch(page, /<SiteHeader/);
+  assert.match(home, /beforeHeading=\{<PopularNow videos=\{popular\} \/>\}/);
+  assert.match(repository, /export async function getPopularVideos\(limit = 100\)/);
+  assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_VERTICAL_VAST_TAG_URL=/);
+  assert.match(sitemap, /"\/reels"/);
 });

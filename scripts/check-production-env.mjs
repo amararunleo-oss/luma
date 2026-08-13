@@ -99,6 +99,17 @@ if (process.env.NEXT_PUBLIC_ADS_ENABLED === "true") {
     process.exit(1);
   }
 
+  const verticalVastTag = process.env.NEXT_PUBLIC_EXOCLICK_VERTICAL_VAST_TAG_URL?.trim();
+  if (verticalVastTag) {
+    try {
+      const parsed = new URL(verticalVastTag);
+      if (parsed.protocol !== "https:" || !parsed.searchParams.get("idzone")) throw new Error("Invalid VAST tag");
+    } catch {
+      console.error("NEXT_PUBLIC_EXOCLICK_VERTICAL_VAST_TAG_URL must be an HTTPS VAST URL containing idzone.");
+      process.exit(1);
+    }
+  }
+
   if (!process.env.ADS_TXT?.trim()) {
     console.warn("ADS_TXT is not configured; /ads.txt will return 404 until authorized seller records are supplied.");
   }

@@ -7,6 +7,7 @@ export const STATIC_SITEMAP_PATHS = [
   "/movie",
   "/tv-show",
   "/most-popular",
+  "/reels",
   "/top-rated",
   "/about",
   "/privacy",

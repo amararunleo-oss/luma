@@ -27,6 +27,17 @@ const desktopPopunder = process.env.NEXT_PUBLIC_EXOCLICK_DESKTOP_POPUNDER_ZONE_I
 if (!desktopPopunder) warnings.push("desktop_popunder placement is not configured");
 else if (!/^\d+$/.test(desktopPopunder)) issues.push("desktop_popunder zone ID is invalid");
 
+const verticalVast = process.env.NEXT_PUBLIC_EXOCLICK_VERTICAL_VAST_TAG_URL?.trim();
+if (!verticalVast) warnings.push("vertical_vast placement is not configured; /reels will run without sponsored slides");
+else {
+  try {
+    const parsed = new URL(verticalVast);
+    if (parsed.protocol !== "https:" || !parsed.searchParams.get("idzone")) throw new Error("Invalid VAST tag");
+  } catch {
+    issues.push("vertical_vast must be an HTTPS VAST URL containing idzone");
+  }
+}
+
 for (const placement of optionalPlacements) {
   const zone = process.env[`NEXT_PUBLIC_EXOCLICK_${placement}_ZONE_ID`]?.trim();
   const className = process.env[`NEXT_PUBLIC_EXOCLICK_${placement}_CLASS`]?.trim();

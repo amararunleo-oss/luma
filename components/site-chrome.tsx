@@ -1,4 +1,4 @@
-import { Film, Flame, Sparkles, Star, Tv, UserRound } from "lucide-react";
+import { Clapperboard, Film, Flame, Sparkles, Star, Tv, UserRound } from "lucide-react";
 import { getTaxonomy } from "@/lib/catalog/repository";
 import Link from "@/components/navigation/revenue-link";
 import { LiveSearch } from "@/components/search/live-search";
@@ -34,6 +34,7 @@ export async function Sidebar() {
           <li><Link href="/movie"><Film size={15} aria-hidden="true" /><span>Movies</span></Link></li>
           <li><Link href="/tv-show"><Tv size={15} aria-hidden="true" /><span>TV Shows</span></Link></li>
           <li><Link href="/most-popular"><Flame size={15} aria-hidden="true" /><span>Popular</span></Link></li>
+          <li><Link href="/reels"><Clapperboard size={15} aria-hidden="true" /><span>Reels</span></Link></li>
           <li><Link href="/top-rated"><Star size={15} aria-hidden="true" /><span>Top Rated</span></Link></li>
         </ul>
       </section>

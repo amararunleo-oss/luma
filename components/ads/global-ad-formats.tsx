@@ -14,10 +14,11 @@ export function GlobalAdFormats() {
   const pathname = usePathname();
   const [device, setDevice] = useState<Device | null>(null);
   const isWatch = pathname.startsWith("/watch/");
+  const isReels = pathname === "/reels";
   const isCatalog = pathname === "/" || catalogRoute.test(pathname);
   const monetizedRoute = isCatalog || isWatch;
   const publicPage = !pathname.startsWith("/admin");
-  const instantActive = publicPage;
+  const instantActive = publicPage && !isReels;
   const fullpageActive = device === "mobile" ? isWatch : monetizedRoute;
 
   useEffect(() => {
@@ -41,10 +42,10 @@ export function GlobalAdFormats() {
   return (
     <>
       {device === "desktop" && <AdSlot active={monetizedRoute} key={`sticky-${pathname}`} placement="desktop-sticky" />}
-      <AdSlot active={instantActive} key={`instant-${pathname}`} placement="catalog-instant" />
+      {!isReels && <AdSlot active={instantActive} key={`instant-${pathname}`} placement="catalog-instant" />}
       {device === "desktop" && <AdSlot active={isWatch} key={`slider-${pathname}`} placement="watch-slider" />}
       {device === "mobile" && isCatalog && <MobilePopunder />}
-      {device === "desktop" && <DesktopPopunder />}
+      {device === "desktop" && !isReels && <DesktopPopunder />}
       <AdSlot active={fullpageActive} key={`fullpage-${pathname}`} placement="fullpage" />
     </>
   );

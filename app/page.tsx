@@ -1,6 +1,7 @@
 import { CatalogPage } from "@/components/catalog";
+import { PopularNow } from "@/components/home/popular-now";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
-import { listVideos } from "@/lib/catalog/repository";
+import { getPopularVideos, listVideos } from "@/lib/catalog/repository";
 import { pageNumber } from "@/lib/videos";
 import { catalogMetadata } from "@/lib/seo";
 import { catalogFilterPath, filterQueryOptions, hasCatalogFilters, parseCatalogFilters, type CatalogFilterParams } from "@/lib/catalog/filters";
@@ -21,7 +22,12 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
 export default async function Home({ searchParams }: { searchParams: Promise<CatalogFilterParams> }) {
   const query = await searchParams;
   const filters = parseCatalogFilters(query);
-  const result = await listVideos({ sort: "latest", ...filterQueryOptions(filters), page: pageNumber(query.page), pageSize: 24 });
+  const page = pageNumber(query.page);
+  const showPopularNow = page === 1 && !hasCatalogFilters(filters);
+  const [result, popular] = await Promise.all([
+    listVideos({ sort: "latest", ...filterQueryOptions(filters), page, pageSize: 24 }),
+    showPopularNow ? getPopularVideos(5) : Promise.resolve([]),
+  ]);
   return (
     <>
       <SiteHeader />
@@ -36,6 +42,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<Cat
         prePaginated
         basePath={catalogFilterPath("/", filters)}
         filters={{ basePath: "/", values: filters }}
+        beforeHeading={<PopularNow videos={popular} />}
       />
       <SiteFooter />
     </>

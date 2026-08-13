@@ -97,6 +97,7 @@ export function CatalogPage({
   prePaginated = false,
   showPagination = true,
   beforeGrid,
+  beforeHeading,
   filters,
 }: {
   title: string;
@@ -110,6 +111,7 @@ export function CatalogPage({
   prePaginated?: boolean;
   showPagination?: boolean;
   beforeGrid?: React.ReactNode;
+  beforeHeading?: React.ReactNode;
   filters?: { basePath: string; values: CatalogFilterValues; hideType?: boolean; hideYear?: boolean };
 }) {
   const totalItems = total ?? items.length;
@@ -119,13 +121,15 @@ export function CatalogPage({
   return (
     <main className="site-container content-layout">
       <section className="catalog-content">
+        {beforeHeading}
+        {beforeHeading && <AdSlot placement="catalog-top" />}
         <header className="page-heading">
           {eyebrow && <p>{eyebrow}</p>}
           <h1>{title}</h1>
           <div><span>{description}</span></div>
         </header>
         {filters && <CatalogFilters basePath={filters.basePath} values={filters.values} hideType={filters.hideType} hideYear={filters.hideYear} />}
-        <AdSlot placement="catalog-top" />
+        {!beforeHeading && <AdSlot placement="catalog-top" />}
         {beforeGrid}
         {visible.length > 0 ? (
           <div className="video-grid">

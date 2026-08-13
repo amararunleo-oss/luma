@@ -11,6 +11,7 @@ import { AdSlot } from "@/components/ads/ad-slot";
 const sections = [
   { label: "Latest", description: "New movie and TV scenes", href: "/", icon: Sparkles },
   { label: "Popular", description: "Most watched videos", href: "/most-popular", icon: Flame },
+  { label: "Reels", description: "Swipe through popular scenes", href: "/reels", icon: Clapperboard },
   { label: "Top rated", description: "Highest-rated scenes", href: "/top-rated", icon: Star },
   { label: "Actresses", description: "Browse performers A–Z", href: "/actress", icon: UserRound },
   { label: "Movies", description: "Explore films A–Z", href: "/movie", icon: Film },

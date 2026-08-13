@@ -350,6 +350,28 @@ export async function listVideos(options: QueryOptions = {}): Promise<CatalogPag
   return listVideosRemoteCached(options);
 }
 
+export async function getPopularVideos(limit = 100): Promise<Video[]> {
+  const safeLimit = Math.max(1, Math.min(200, Math.floor(limit)));
+  const chunkSize = 48;
+  const pageCount = Math.ceil(safeLimit / chunkSize);
+  const rankedPages = await Promise.all(Array.from({ length: pageCount }, (_, index) => (
+    listVideos({ sort: "popular", order: "popular", page: index + 1, pageSize: chunkSize })
+  )));
+  const unique = new Map<number, Video>();
+  rankedPages.flatMap((result) => result.items).forEach((video) => unique.set(video.id, video));
+
+  if (unique.size < safeLimit) {
+    const fallbackPages = await Promise.all(Array.from({ length: pageCount }, (_, index) => (
+      listVideos({ order: "popular", page: index + 1, pageSize: chunkSize })
+    )));
+    fallbackPages.flatMap((result) => result.items).forEach((video) => {
+      if (!unique.has(video.id)) unique.set(video.id, video);
+    });
+  }
+
+  return [...unique.values()].slice(0, safeLimit);
+}
+
 async function getVideoBySlugUncached(slug: string): Promise<DatabaseResult<Video | null>> {
   const db = database();
   const seedVideo = () => seedVideos.find((video) => video.slug === slug) ?? null;

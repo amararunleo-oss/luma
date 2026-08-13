@@ -38,6 +38,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1106.0",
     "@aws-sdk/s3-request-presigner": "^3.1107.0",
+    "@dailymotion/vast-client": "^6.4.5",
     "@upstash/redis": "^1.38.2",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
