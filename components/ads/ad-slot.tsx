@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-export type Placement = "catalog-top" | "catalog-footer" | "watch-footer" | "sidebar" | "below-player" | "watch-outstream" | "drawer-compact" | "search-compact" | "desktop-sticky" | "catalog-instant" | "watch-slider" | "fullpage";
+export type Placement = "catalog-top" | "catalog-footer" | "watch-footer" | "sidebar" | "below-player" | "watch-outstream" | "drawer-compact" | "search-compact" | "mobile-infeed" | "desktop-sticky" | "catalog-instant" | "watch-slider" | "fullpage";
 type ZoneConfig = { zoneId?: string; className?: string; format: string; provider?: string };
 type Device = "mobile" | "desktop";
 
@@ -51,6 +51,9 @@ const desktopPlacements: Record<Placement, ZoneConfig> = {
     className: process.env.NEXT_PUBLIC_EXOCLICK_SEARCH_CLASS,
     format: "compact",
   },
+  "mobile-infeed": {
+    format: "infeed",
+  },
   "desktop-sticky": {
     zoneId: process.env.NEXT_PUBLIC_EXOCLICK_STICKY_ZONE_ID,
     className: process.env.NEXT_PUBLIC_EXOCLICK_STICKY_CLASS,
@@ -95,6 +98,11 @@ const mobilePlacements: Partial<Record<Placement, ZoneConfig>> = {
     className: process.env.NEXT_PUBLIC_EXOCLICK_PLAYER_MOBILE_CLASS,
     format: "leaderboard",
   },
+  "watch-outstream": {
+    zoneId: process.env.NEXT_PUBLIC_EXOCLICK_MOBILE_INFEED_ZONE_ID,
+    className: process.env.NEXT_PUBLIC_EXOCLICK_MOBILE_INFEED_CLASS,
+    format: "infeed",
+  },
   "drawer-compact": {
     zoneId: process.env.NEXT_PUBLIC_EXOCLICK_DRAWER_MOBILE_ZONE_ID,
     className: process.env.NEXT_PUBLIC_EXOCLICK_DRAWER_MOBILE_CLASS,
@@ -104,6 +112,11 @@ const mobilePlacements: Partial<Record<Placement, ZoneConfig>> = {
     zoneId: process.env.NEXT_PUBLIC_EXOCLICK_SEARCH_MOBILE_ZONE_ID,
     className: process.env.NEXT_PUBLIC_EXOCLICK_SEARCH_MOBILE_CLASS,
     format: "compact",
+  },
+  "mobile-infeed": {
+    zoneId: process.env.NEXT_PUBLIC_EXOCLICK_MOBILE_INFEED_ZONE_ID,
+    className: process.env.NEXT_PUBLIC_EXOCLICK_MOBILE_INFEED_CLASS,
+    format: "infeed",
   },
   "catalog-instant": {
     zoneId: process.env.NEXT_PUBLIC_EXOCLICK_MOBILE_INSTANT_ZONE_ID,
@@ -120,8 +133,9 @@ const mobilePlacements: Partial<Record<Placement, ZoneConfig>> = {
 
 const adsEnabled = process.env.NEXT_PUBLIC_ADS_ENABLED === "true";
 const blockedAdTypes = process.env.NEXT_PUBLIC_EXOCLICK_BLOCK_AD_TYPES?.trim();
-const EMPTY_AFTER_MS = 15_000;
-const EMPTY_RETRY_DELAY_MS = 15_000;
+const EMPTY_AFTER_MS = 8_000;
+const EMPTY_RETRY_DELAY_MS = 4_000;
+const MAX_EMPTY_RETRIES = 2;
 const PROVIDER_RETRY_MS = 1_500;
 const LAZY_ROOT_MARGIN_PX = 320;
 
@@ -262,6 +276,9 @@ export function AdSlot({ placement, active = true }: { placement: Placement; act
     let emptyRetryTimer: number | undefined;
     let retryEmptyTimer: number | undefined;
     let providerAttempts = 0;
+    let needsEmptyRetry = false;
+    let emptyRetryInFlight = false;
+    let emptyRetryCount = 0;
 
     setFailed(false);
     setStatus("loading");
@@ -300,6 +317,42 @@ export function AdSlot({ placement, active = true }: { placement: Placement; act
 
     connectProvider();
     updateStatus();
+    const retryVisibleEmptyZone = () => {
+      const container = containerRef.current;
+      if (!alive || format === "overlay" || !needsEmptyRetry || emptyRetryInFlight || emptyRetryCount >= MAX_EMPTY_RETRIES || !zone || !container) return;
+      if (document.visibilityState !== "visible" || !navigator.onLine || !isNearViewport(container)) return;
+      if (hasRenderedCreative(host, zone, format)) {
+        needsEmptyRetry = false;
+        setStatus("loaded");
+        return;
+      }
+      needsEmptyRetry = false;
+      emptyRetryInFlight = true;
+      emptyRetryCount += 1;
+      zone = createZone(className!, zoneId!);
+      host.replaceChildren(zone);
+      setStatus("loading");
+      scheduleServe();
+      retryEmptyTimer = window.setTimeout(() => {
+        if (!alive || !zone) return;
+        emptyRetryInFlight = false;
+        if (hasRenderedCreative(host, zone, format)) {
+          setStatus("loaded");
+        } else {
+          needsEmptyRetry = emptyRetryCount < MAX_EMPTY_RETRIES;
+          setStatus("empty");
+          if (needsEmptyRetry) emptyRetryTimer = window.setTimeout(retryVisibleEmptyZone, EMPTY_RETRY_DELAY_MS);
+        }
+      }, EMPTY_AFTER_MS);
+    };
+    const resumeEmptyRetry = () => {
+      if (document.visibilityState === "visible") retryVisibleEmptyZone();
+    };
+    document.addEventListener("visibilitychange", resumeEmptyRetry);
+    window.addEventListener("pageshow", resumeEmptyRetry);
+    window.addEventListener("online", resumeEmptyRetry);
+    window.addEventListener("scroll", resumeEmptyRetry, { passive: true });
+    window.addEventListener("resize", resumeEmptyRetry, { passive: true });
     const emptyTimer = format === "overlay" ? undefined : window.setTimeout(() => {
       if (!alive || !zone) return;
       if (hasRenderedCreative(host, zone, format)) {
@@ -307,21 +360,8 @@ export function AdSlot({ placement, active = true }: { placement: Placement; act
         return;
       }
       setStatus("empty");
-      emptyRetryTimer = window.setTimeout(() => {
-        const container = containerRef.current;
-        if (!alive || !zone || !container || document.visibilityState !== "visible" || !isNearViewport(container)) return;
-        if (hasRenderedCreative(host, zone, format)) {
-          setStatus("loaded");
-          return;
-        }
-        zone = createZone(className!, zoneId!);
-        host.replaceChildren(zone);
-        setStatus("loading");
-        scheduleServe();
-        retryEmptyTimer = window.setTimeout(() => {
-          if (alive && zone) setStatus(hasRenderedCreative(host, zone, format) ? "loaded" : "empty");
-        }, EMPTY_AFTER_MS);
-      }, EMPTY_RETRY_DELAY_MS);
+      needsEmptyRetry = true;
+      emptyRetryTimer = window.setTimeout(retryVisibleEmptyZone, EMPTY_RETRY_DELAY_MS);
     }, EMPTY_AFTER_MS);
 
     return () => {
@@ -330,6 +370,11 @@ export function AdSlot({ placement, active = true }: { placement: Placement; act
       if (emptyRetryTimer !== undefined) window.clearTimeout(emptyRetryTimer);
       if (retryEmptyTimer !== undefined) window.clearTimeout(retryEmptyTimer);
       if (providerRetryTimer !== undefined) window.clearTimeout(providerRetryTimer);
+      document.removeEventListener("visibilitychange", resumeEmptyRetry);
+      window.removeEventListener("pageshow", resumeEmptyRetry);
+      window.removeEventListener("online", resumeEmptyRetry);
+      window.removeEventListener("scroll", resumeEmptyRetry);
+      window.removeEventListener("resize", resumeEmptyRetry);
       if (format === "overlay") document.removeEventListener(creativeEvent, creativeDisplayed);
       observer.disconnect();
     };

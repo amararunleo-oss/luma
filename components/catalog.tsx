@@ -6,6 +6,7 @@ import Link from "@/components/navigation/revenue-link";
 import { AdSlot } from "./ads/ad-slot";
 import { CatalogFilters } from "./catalog-filters";
 import type { CatalogFilterValues } from "@/lib/catalog/filters";
+import { Fragment } from "react";
 
 export const PAGE_SIZE = 24;
 
@@ -114,7 +115,14 @@ export function CatalogPage({
         <AdSlot placement="catalog-top" />
         {beforeGrid}
         {visible.length > 0 ? (
-          <div className="video-grid">{visible.map((video, index) => <VideoCard video={video} priority={safePage === 1 && index < 4} key={video.id} />)}</div>
+          <div className="video-grid">
+            {visible.map((video, index) => (
+              <Fragment key={video.id}>
+                <VideoCard video={video} priority={safePage === 1 && index < 4} />
+                {(index + 1) % 4 === 0 && index < visible.length - 1 && <AdSlot placement="mobile-infeed" />}
+              </Fragment>
+            ))}
+          </div>
         ) : (
           <div className="empty-state"><h2>No matching scenes</h2><Link href="/">Return home</Link></div>
         )}

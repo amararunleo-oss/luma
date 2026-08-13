@@ -59,7 +59,7 @@ if (process.env.NEXT_PUBLIC_ADS_ENABLED === "true") {
     process.exit(1);
   }
 
-  const optionalPlacements = ["STICKY", "INSTANT", "VIDEO_SLIDER", "DESKTOP_FPI", "MOBILE_FPI", "MOBILE_INSTANT", "DRAWER_MOBILE", "SEARCH", "SEARCH_MOBILE"];
+  const optionalPlacements = ["STICKY", "INSTANT", "VIDEO_SLIDER", "DESKTOP_FPI", "MOBILE_FPI", "MOBILE_INSTANT", "DRAWER_MOBILE", "SEARCH", "SEARCH_MOBILE", "MOBILE_INFEED"];
   for (const placement of optionalPlacements) {
     const zoneKey = `NEXT_PUBLIC_EXOCLICK_${placement}_ZONE_ID`;
     const classKey = `NEXT_PUBLIC_EXOCLICK_${placement}_CLASS`;

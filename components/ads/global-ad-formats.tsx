@@ -16,6 +16,8 @@ export function GlobalAdFormats() {
   const isWatch = pathname.startsWith("/watch/");
   const isCatalog = pathname === "/" || catalogRoute.test(pathname);
   const monetizedRoute = isCatalog || isWatch;
+  const instantActive = device === "mobile" ? isCatalog : monetizedRoute;
+  const fullpageActive = device === "mobile" ? isWatch : monetizedRoute;
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 820px)");
@@ -37,12 +39,12 @@ export function GlobalAdFormats() {
 
   return (
     <>
-      {device === "desktop" && <AdSlot active={monetizedRoute} placement="desktop-sticky" />}
-      <AdSlot active={monetizedRoute} placement="catalog-instant" />
-      {device === "desktop" && <AdSlot active={isWatch} placement="watch-slider" />}
-      {device === "mobile" && <MobilePopunder />}
+      {device === "desktop" && <AdSlot active={monetizedRoute} key={`sticky-${pathname}`} placement="desktop-sticky" />}
+      <AdSlot active={instantActive} key={`instant-${pathname}`} placement="catalog-instant" />
+      {device === "desktop" && <AdSlot active={isWatch} key={`slider-${pathname}`} placement="watch-slider" />}
+      {device === "mobile" && isCatalog && <MobilePopunder />}
       {device === "desktop" && <DesktopPopunder />}
-      <AdSlot active={monetizedRoute} placement="fullpage" />
+      <AdSlot active={fullpageActive} key={`fullpage-${pathname}`} placement="fullpage" />
     </>
   );
 }
