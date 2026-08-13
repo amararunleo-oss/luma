@@ -4,7 +4,7 @@ import { ExternalLink, Play, SkipForward, Volume2, VolumeX } from "lucide-react"
 import { useEffect, useRef, useState } from "react";
 import type { VASTTracker } from "@dailymotion/vast-client";
 
-const VERTICAL_AD_CAP_MS = 3 * 60 * 1_000;
+const VERTICAL_AD_CAP_MS = 1 * 60 * 1_000;
 const CAP_STORAGE_KEY = "actrexx:vertical-vast:last-impression";
 
 type VastMedia = {
@@ -210,7 +210,6 @@ export function VerticalVastSlide({ checkpoint, vastTag, onUnavailable }: { chec
         <p>{adDescription}</p>
         <button type="button" onClick={openAdvertiser}>Learn more<ExternalLink size={14} aria-hidden="true" /></button>
       </div>
-      <span className="vertical-vast-swipe">Skip to continue</span>
     </div>
   );
 }

@@ -14,7 +14,7 @@ type FeedVideo = { kind: "video"; video: ReelVideo; position: number };
 type FeedAd = { kind: "ad"; checkpoint: number };
 type FeedItem = FeedVideo | FeedAd;
 
-const AD_INTERVAL = 5;
+const AD_INTERVAL = 6;
 
 function buildFeed(videos: ReelVideo[], includeAds: boolean): FeedItem[] {
   const items: FeedItem[] = [];
@@ -81,7 +81,10 @@ export function ReelsFeed({ videos, vastTag }: { videos: ReelVideo[]; vastTag?: 
 
   const scrollToIndex = useCallback((target: number, direction: 1 | -1 = 1) => {
     const index = availableIndex(target, direction);
-    slidesRef.current.get(index)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const root = feedRef.current;
+    const slide = slidesRef.current.get(index);
+    if (!root || !slide) return;
+    root.scrollTo({ top: slide.offsetTop, behavior: "smooth" });
   }, [availableIndex]);
 
   const skipAd = useCallback((checkpoint: number) => {
@@ -172,6 +175,7 @@ export function ReelsFeed({ videos, vastTag }: { videos: ReelVideo[]; vastTag?: 
   return (
     <div className="reels-stage">
       <div className="reels-progress" aria-hidden="true" style={{ "--reels-progress": progress } as React.CSSProperties}><span /></div>
+      <Link className="reels-popular-link" href="/most-popular"><Clapperboard size={13} aria-hidden="true" />Popular videos</Link>
       <div className={`reels-feed${adActive ? " reels-feed-locked" : ""}`} ref={feedRef} role="region" aria-label="Popular video reels">
         {items.map((item, index) => {
           const skipped = skippedAds.has(index);
