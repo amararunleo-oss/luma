@@ -356,7 +356,8 @@ test("keeps ExoClick configuration valid and uses a fresh document lifecycle for
   assert.match(adSlot, /needsEmptyRetry = true;\s+emptyRetryTimer = window\.setTimeout\(retryVisibleEmptyZone/);
   assert.doesNotMatch(adSlot, /servedOverlayZoneRef|RETRY_AFTER_MS|mountZone\(true\)/);
   assert.doesNotMatch(adSlot, /data-ex_av/);
-  assert.match(globalFormats, /const instantActive = device === "mobile" \? isCatalog : monetizedRoute/);
+  assert.match(globalFormats, /const publicPage = !pathname\.startsWith\("\/admin"\)/);
+  assert.match(globalFormats, /const instantActive = publicPage/);
   assert.match(globalFormats, /const fullpageActive = device === "mobile" \? isWatch : monetizedRoute/);
   assert.match(globalFormats, /device === "desktop" && <AdSlot active=\{monetizedRoute\} key=\{`sticky-\$\{pathname\}`\} placement="desktop-sticky"/);
   assert.match(globalFormats, /<AdSlot active=\{instantActive\} key=\{`instant-\$\{pathname\}`\} placement="catalog-instant"/);
@@ -392,6 +393,8 @@ test("keeps ExoClick configuration valid and uses a fresh document lifecycle for
   assert.match(directory, /placement="catalog-top"/);
   assert.match(directory, /placement="catalog-footer"/);
   assert.match(catalog, /placement="catalog-footer"/);
+  assert.match(catalog, /mobilePaginationItems\(page, pages\)/);
+  assert.match(catalog, /Math\.min\(4, total\)/);
   assert.match(catalog, /\(index \+ 1\) % 4 === 0 && index < visible\.length - 1 && <AdSlot placement="mobile-infeed"/);
   assert.match(watchPage, /placement="watch-footer"/);
   assert.match(layout, /<GlobalAdFormats \/>/);
@@ -404,6 +407,9 @@ test("keeps ExoClick configuration valid and uses a fresh document lifecycle for
   assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_DRAWER_MOBILE_ZONE_ID=/);
   assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_SEARCH_MOBILE_ZONE_ID=/);
   assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_MOBILE_INFEED_ZONE_ID=/);
+  assert.match(css, /\.pagination-mobile-pages \{ display:none; \}/);
+  assert.match(css, /\.pagination-mobile-pages a \{ width:34px; height:34px; \}/);
+  assert.match(css, /\.pagination \+ \.content-end-ad \{ margin-top:20px; padding-top:14px; \}/);
   assert.match(css, /\.ad-slot:not\(\.ad-slot-overlay\) iframe/);
   assert.match(css, /\.ad-slot\[data-state="empty"\] \{ min-height:0; height:0; padding:0; border:0; margin-block:0; overflow:hidden; \}/);
   assert.match(css, /\.ad-slot\[data-state="idle"\] > span, \.ad-slot\[data-state="loading"\] > span \{ visibility:hidden; \}/);

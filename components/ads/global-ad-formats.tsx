@@ -16,7 +16,8 @@ export function GlobalAdFormats() {
   const isWatch = pathname.startsWith("/watch/");
   const isCatalog = pathname === "/" || catalogRoute.test(pathname);
   const monetizedRoute = isCatalog || isWatch;
-  const instantActive = device === "mobile" ? isCatalog : monetizedRoute;
+  const publicPage = !pathname.startsWith("/admin");
+  const instantActive = publicPage;
   const fullpageActive = device === "mobile" ? isWatch : monetizedRoute;
 
   useEffect(() => {

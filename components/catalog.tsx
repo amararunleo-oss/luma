@@ -40,29 +40,35 @@ export function Pagination({ page, total, basePath, pageSize = PAGE_SIZE }: { pa
   if (pages === 1) return null;
   const href = (target: number) => target === 1 ? basePath : `${basePath}${basePath.includes("?") ? "&" : "?"}page=${target}`;
   const visiblePages = paginationItems(page, pages);
+  const mobilePages = mobilePaginationItems(page, pages);
   return (
     <nav className="pagination" aria-label="Pagination">
       {page > 1
-        ? <Link className="page-arrow" href={href(page - 1)} rel="prev"><ChevronLeft size={15} aria-hidden="true" />Previous</Link>
-        : <span className="page-arrow disabled" aria-hidden="true"><ChevronLeft size={15} />Previous</span>}
+        ? <Link aria-label="Previous page" className="page-arrow page-arrow-previous" href={href(page - 1)} rel="prev"><ChevronLeft size={15} aria-hidden="true" /><span className="page-arrow-label">Previous</span></Link>
+        : <span className="page-arrow page-arrow-previous disabled" aria-hidden="true"><ChevronLeft size={15} /><span className="page-arrow-label">Previous</span></span>}
       <div className="pagination-pages">
         {visiblePages.map((item) => typeof item === "number" ? (
           <Link className={item === page ? "active" : ""} aria-current={item === page ? "page" : undefined} href={href(item)} key={item}>{item}</Link>
-        ) : <span className="pagination-gap" aria-hidden="true" key={item}>…</span>)}
+        ) : <span className="pagination-gap" aria-hidden="true" key={item}>...</span>)}
       </div>
-      <span className="pagination-status">Page {page}</span>
+      <div className="pagination-mobile-pages">
+        {mobilePages.map((item) => (
+          <Link className={item === page ? "active" : ""} aria-current={item === page ? "page" : undefined} aria-label={`Page ${item}`} href={href(item)} key={item}>{item}</Link>
+        ))}
+      </div>
       {page < pages
-        ? <Link className="page-arrow" href={href(page + 1)} rel="next">Next<ChevronRight size={15} aria-hidden="true" /></Link>
-        : <span className="page-arrow disabled" aria-hidden="true">Next<ChevronRight size={15} /></span>}
+        ? <Link aria-label="Next page" className="page-arrow page-arrow-next" href={href(page + 1)} rel="next"><span className="page-arrow-label">Next</span><ChevronRight size={15} aria-hidden="true" /></Link>
+        : <span className="page-arrow page-arrow-next disabled" aria-hidden="true"><span className="page-arrow-label">Next</span><ChevronRight size={15} /></span>}
+      <span className="pagination-status">Page {page} of {pages}</span>
     </nav>
   );
 }
 
 function paginationItems(current: number, total: number): Array<number | string> {
-  if (total <= 7) return Array.from({ length: total }, (_, index) => index + 1);
-  const numbers = new Set([1, total, current - 1, current, current + 1]);
-  if (current <= 4) [2, 3, 4, 5].forEach((number) => numbers.add(number));
-  if (current >= total - 3) [total - 4, total - 3, total - 2, total - 1].forEach((number) => numbers.add(number));
+  if (total <= 9) return Array.from({ length: total }, (_, index) => index + 1);
+  const numbers = new Set([1, total, current - 2, current - 1, current, current + 1, current + 2]);
+  if (current <= 5) [2, 3, 4, 5, 6, 7].forEach((number) => numbers.add(number));
+  if (current >= total - 4) [total - 6, total - 5, total - 4, total - 3, total - 2, total - 1].forEach((number) => numbers.add(number));
   const sorted = [...numbers].filter((number) => number >= 1 && number <= total).sort((a, b) => a - b);
   const items: Array<number | string> = [];
   sorted.forEach((number, index) => {
@@ -70,6 +76,13 @@ function paginationItems(current: number, total: number): Array<number | string>
     items.push(number);
   });
   return items;
+}
+
+function mobilePaginationItems(current: number, total: number) {
+  const length = Math.min(4, total);
+  const preferredStart = current <= 2 ? 1 : current >= total - 1 ? total - length + 1 : current - 1;
+  const start = Math.max(1, Math.min(preferredStart, total - length + 1));
+  return Array.from({ length }, (_, index) => start + index);
 }
 
 export function CatalogPage({
