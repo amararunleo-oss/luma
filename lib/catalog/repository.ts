@@ -96,6 +96,16 @@ export type CatalogSitemap = {
 export type CatalogSitemapSection = "videos" | "actresses" | "works" | "taxonomy";
 export type CatalogSitemapEntry = { path: string; updatedAt?: string };
 export type CatalogSitemapCounts = { videos: number; actresses: number; works: number; taxonomy: number };
+export type VideoSitemapEntry = {
+  path: string;
+  title: string;
+  description: string;
+  thumbnail: string;
+  playerUrl: string;
+  durationSeconds: number;
+  publicationDate: string;
+  updatedAt?: string;
+};
 
 function database() {
   return getD1Database();
@@ -840,6 +850,72 @@ export async function getCatalogSitemapChunk(section: CatalogSitemapSection, off
     taxonomy: [...seedTags.map((tag) => ({ path: `/tag/${tag.slug}` })), ...seedYears.map((year) => ({ path: `/year/${year}` }))],
   };
   return entries[section].slice(safeOffset, safeOffset + safeLimit);
+}
+
+function sitemapDate(value: string | null | undefined, year?: number | null) {
+  const parsed = value ? new Date(value) : null;
+  if (parsed && !Number.isNaN(parsed.getTime())) return parsed.toISOString();
+  const safeYear = year && year >= 1900 && year <= new Date().getFullYear() + 1 ? year : 2000;
+  return new Date(Date.UTC(safeYear, 0, 1)).toISOString();
+}
+
+export async function getVideoSitemapChunk(offset: number, limit: number): Promise<VideoSitemapEntry[]> {
+  const safeOffset = Math.max(0, Math.floor(offset));
+  const safeLimit = Math.min(5_000, Math.max(1, Math.floor(limit)));
+  const db = database();
+  if (db) {
+    try {
+      const result = await db.prepare(`
+        SELECT
+          v.slug,
+          v.display_title AS title,
+          v.description,
+          v.thumbnail_key AS thumbnailKey,
+          v.embed_id AS embedId,
+          v.duration_seconds AS durationSeconds,
+          v.year,
+          COALESCE(v.published_at, v.first_seen_at) AS publicationDate,
+          v.updated_at AS updatedAt
+        FROM videos v
+        WHERE v.is_active = 1
+          AND v.thumbnail_key IS NOT NULL
+          AND v.embed_id IS NOT NULL
+        ORDER BY v.id
+        LIMIT ? OFFSET ?
+      `).bind(safeLimit, safeOffset).all<{
+        slug: string;
+        title: string;
+        description: string;
+        thumbnailKey: string;
+        embedId: number;
+        durationSeconds: number;
+        year: number | null;
+        publicationDate: string | null;
+        updatedAt: string | null;
+      }>();
+      return (result.results ?? []).map((item) => ({
+        path: `/watch/${item.slug}`,
+        title: item.title,
+        description: item.description,
+        thumbnail: thumbnailUrl(item.thumbnailKey),
+        playerUrl: `https://videocelebs.net/embed/${item.embedId}`,
+        durationSeconds: Math.max(1, Math.min(28_800, Number(item.durationSeconds) || 1)),
+        publicationDate: sitemapDate(item.publicationDate, item.year),
+        updatedAt: item.updatedAt ?? undefined,
+      }));
+    } catch { /* use the bundled seed catalog */ }
+  }
+
+  return seedVideos.slice(safeOffset, safeOffset + safeLimit).map((video) => ({
+    path: `/watch/${video.slug}`,
+    title: video.sceneTitle,
+    description: video.description,
+    thumbnail: video.thumbnail,
+    playerUrl: video.embedUrl,
+    durationSeconds: Math.max(1, video.duration.split(":").map(Number).reduce((minutes, value) => minutes * 60 + value, 0)),
+    publicationDate: sitemapDate(video.publishedAt, video.year),
+    updatedAt: video.publishedAt,
+  }));
 }
 
 export async function getCatalogSitemap(): Promise<CatalogSitemap> {

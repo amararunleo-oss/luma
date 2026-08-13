@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Clapperboard, Film, Flame, Menu, Sparkles, Star, Tags, Tv, UserRound, X } from "lucide-react";
+import { ChevronDown, Clapperboard, Film, Flame, Layers3, Menu, Sparkles, Star, Tags, Tv, UserRound, X } from "lucide-react";
 import Link from "@/components/navigation/revenue-link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -12,6 +12,7 @@ const sections = [
   { label: "Latest", description: "New movie and TV scenes", href: "/", icon: Sparkles },
   { label: "Popular", description: "Most watched videos", href: "/most-popular", icon: Flame },
   { label: "Reels", description: "Swipe through popular scenes", href: "/reels", icon: Clapperboard },
+  { label: "Collections", description: "Curated ways to explore", href: "/collections", icon: Layers3 },
   { label: "Top rated", description: "Highest-rated scenes", href: "/top-rated", icon: Star },
   { label: "Actresses", description: "Browse performers A–Z", href: "/actress", icon: UserRound },
   { label: "Movies", description: "Explore films A–Z", href: "/movie", icon: Film },

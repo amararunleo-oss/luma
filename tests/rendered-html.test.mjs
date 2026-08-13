@@ -170,16 +170,20 @@ test("contains drawer scrolling and keeps compact card metadata rhythm", async (
 });
 
 test("publishes a cached sitemap index with bounded catalog chunks", async () => {
-  const [indexRoute, childRoute, sitemapHelpers, robots] = await Promise.all([
+  const [indexRoute, childRoute, videoRoute, sitemapHelpers, repository, robots] = await Promise.all([
     source("app/sitemap.xml/route.ts"),
     source("app/sitemaps/[id]/route.ts"),
+    source("app/video-sitemaps/[id]/route.ts"),
     source("lib/sitemaps.ts"),
+    source("lib/catalog/repository.ts"),
     source("app/robots.ts"),
   ]);
 
   assert.match(indexRoute, /<sitemapindex/);
   assert.match(childRoute, /parseSitemapId/);
   assert.match(sitemapHelpers, /SITEMAP_CHUNK_SIZE = 10_000/);
+  assert.match(sitemapHelpers, /VIDEO_SITEMAP_CHUNK_SIZE = 4_000/);
+  assert.match(sitemapHelpers, /video-media/);
   assert.match(sitemapHelpers, /videos/);
   assert.match(sitemapHelpers, /actresses/);
   assert.match(sitemapHelpers, /works/);
@@ -187,6 +191,41 @@ test("publishes a cached sitemap index with bounded catalog chunks", async () =>
   assert.match(robots, /disallow: \["\/api\/", "\/admin\/", "\/search"\]/);
   assert.match(robots, /Googlebot/);
   assert.match(robots, /GPTBot/);
+  assert.match(videoRoute, /xmlns:video="http:\/\/www\.google\.com\/schemas\/sitemap-video\/1\.1"/);
+  assert.match(videoRoute, /<video:thumbnail_loc>/);
+  assert.match(videoRoute, /<video:player_loc allow_embed="yes">/);
+  assert.match(videoRoute, /<video:publication_date>/);
+  assert.match(videoRoute, /<video:family_friendly>no<\/video:family_friendly>/);
+  assert.match(repository, /export async function getVideoSitemapChunk/);
+});
+
+test("publishes curated collection pages without generating arbitrary combinations", async () => {
+  const [definitions, indexPage, detailPage, links, sitemap] = await Promise.all([
+    source("lib/collections.ts"),
+    source("app/collections/page.tsx"),
+    source("app/collections/[slug]/page.tsx"),
+    source("components/collections/collection-links.tsx"),
+    source("lib/sitemaps.ts"),
+  ]);
+  assert.match(definitions, /COLLECTION_MINIMUM_VIDEOS = 8/);
+  assert.match(definitions, /popular-movie-scenes/);
+  assert.match(definitions, /sydney-sweeney-scenes/);
+  assert.match(detailPage, /collectionBySlug/);
+  assert.match(detailPage, /result\.total >= COLLECTION_MINIMUM_VIDEOS/);
+  assert.match(detailPage, /"@type": "CollectionPage"/);
+  assert.match(indexPage, /<CollectionLinks/);
+  assert.match(links, /\/collections\/\$\{collection\.slug\}/);
+  assert.match(sitemap, /"\/collections"/);
+});
+
+test("keeps search history local and shows quick suggestions without backend writes", async () => {
+  const search = await source("components/search/live-search.tsx");
+  assert.match(search, /SEARCH_HISTORY_KEY = "actrexx:search-history"/);
+  assert.match(search, /window\.localStorage\.setItem/);
+  assert.match(search, /window\.localStorage\.removeItem/);
+  assert.match(search, /Recent searches/);
+  assert.match(search, /Quick suggestions/);
+  assert.match(search, /saveSearch\(query\)/);
 });
 
 test("stores compressed catalog cache envelopes in Upstash as readable strings", async () => {
@@ -412,8 +451,8 @@ test("keeps ExoClick configuration valid and uses a fresh document lifecycle for
   assert.match(css, /\.pagination \+ \.content-end-ad \{ margin-top:20px; padding-top:14px; \}/);
   assert.match(css, /\.ad-slot:not\(\.ad-slot-overlay\) iframe/);
   assert.match(css, /\.ad-slot\[data-state="empty"\] \{ min-height:0; height:0; padding:0; border:0; margin-block:0; overflow:hidden; \}/);
-  assert.match(css, /\.ad-slot\[data-state="idle"\] > span, \.ad-slot\[data-state="loading"\] > span \{ visibility:hidden; \}/);
-  assert.match(css, /\.content-end-ad:has\(> \.ad-slot\[data-state="empty"\]\), \.watch-banner:has/);
+  assert.match(css, /\.ad-slot\[data-state="idle"\], \.ad-slot\[data-state="loading"\] \{ min-height:0; height:0/);
+  assert.match(css, /\.content-end-ad:not\(:has\(> \.ad-slot\[data-state="loaded"\]\)\), \.watch-banner:not/);
   assert.match(css, /\.ad-slot-overlay \.ad-zone-host \{ width:auto; max-width:none/);
   assert.match(css, /\.ad-slot-overlay\[data-placement="fullpage"\] \{ width:100vw; height:100vh; height:100dvh; position:fixed/);
   assert.match(css, /\.ad-slot-overlay\[data-placement="fullpage"\] \.ad-zone-host, \.ad-slot-overlay\[data-placement="fullpage"\] \.ad-zone-host > ins \{ width:100%; height:100%/);
@@ -453,6 +492,8 @@ test("keeps vertical reels isolated, bounded, and VAST-enabled", async () => {
   assert.match(feed, /reels-feed-locked/);
   assert.match(feed, /if \(adActive && \["ArrowDown", "PageDown", "ArrowUp", "PageUp", " "\]/);
   assert.match(feed, /Swipe up to explore/);
+  assert.match(feed, /navigator\.share/);
+  assert.match(feed, /className="reel-share"/);
   assert.match(vast, /import\("@dailymotion\/vast-client"\)/);
   assert.match(vast, /trackImpression\(\)/);
   assert.match(vast, /VERTICAL_AD_CAP_MS = 1 \* 60/);

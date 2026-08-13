@@ -275,6 +275,7 @@ export function AdSlot({ placement, active = true }: { placement: Placement; act
     let providerRetryTimer: number | undefined;
     let emptyRetryTimer: number | undefined;
     let retryEmptyTimer: number | undefined;
+    let creativeProbeTimer: number | undefined;
     let providerAttempts = 0;
     let needsEmptyRetry = false;
     let emptyRetryInFlight = false;
@@ -290,7 +291,10 @@ export function AdSlot({ placement, active = true }: { placement: Placement; act
     }
 
     const updateStatus = () => {
-      if (alive && zone && hasRenderedCreative(host, zone, format)) setStatus("loaded");
+      if (alive && zone && hasRenderedCreative(host, zone, format)) {
+        setStatus("loaded");
+        if (creativeProbeTimer !== undefined) window.clearInterval(creativeProbeTimer);
+      }
     };
     const observer = new MutationObserver(updateStatus);
     observer.observe(host, { attributes: true, childList: true, subtree: true });
@@ -317,6 +321,7 @@ export function AdSlot({ placement, active = true }: { placement: Placement; act
 
     connectProvider();
     updateStatus();
+    if (format !== "overlay") creativeProbeTimer = window.setInterval(updateStatus, 250);
     const retryVisibleEmptyZone = () => {
       const container = containerRef.current;
       if (!alive || format === "overlay" || !needsEmptyRetry || emptyRetryInFlight || emptyRetryCount >= MAX_EMPTY_RETRIES || !zone || !container) return;
@@ -370,6 +375,7 @@ export function AdSlot({ placement, active = true }: { placement: Placement; act
       if (emptyRetryTimer !== undefined) window.clearTimeout(emptyRetryTimer);
       if (retryEmptyTimer !== undefined) window.clearTimeout(retryEmptyTimer);
       if (providerRetryTimer !== undefined) window.clearTimeout(providerRetryTimer);
+      if (creativeProbeTimer !== undefined) window.clearInterval(creativeProbeTimer);
       document.removeEventListener("visibilitychange", resumeEmptyRetry);
       window.removeEventListener("pageshow", resumeEmptyRetry);
       window.removeEventListener("online", resumeEmptyRetry);

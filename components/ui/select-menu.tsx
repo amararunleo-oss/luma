@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, ChevronDown } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 export type SelectMenuOption = { value: string; label: string };
 
@@ -22,16 +22,34 @@ export function SelectMenu({ id, name, defaultValue = "", options, ariaLabel, re
   const [selectedIndex, setSelectedIndex] = useState(initialIndex);
   const [activeIndex, setActiveIndex] = useState(initialIndex);
   const [open, setOpen] = useState(false);
+  const [openUp, setOpenUp] = useState(false);
   const selected = options[selectedIndex] ?? options[0];
+
+  const updateDirection = useCallback(() => {
+    const trigger = root.current?.querySelector<HTMLButtonElement>(".select-menu-trigger");
+    if (!trigger) return;
+    const rect = trigger.getBoundingClientRect();
+    const roomBelow = window.innerHeight - rect.bottom;
+    const roomAbove = rect.top;
+    setOpenUp(roomBelow < Math.min(270, options.length * 36 + 12) && roomAbove > roomBelow);
+  }, [options.length]);
 
   useEffect(() => {
     if (!open) return;
+    updateDirection();
     const close = (event: PointerEvent) => {
       if (!root.current?.contains(event.target as Node)) setOpen(false);
     };
+    const reposition = () => updateDirection();
     document.addEventListener("pointerdown", close);
-    return () => document.removeEventListener("pointerdown", close);
-  }, [open]);
+    window.addEventListener("resize", reposition, { passive: true });
+    window.addEventListener("scroll", reposition, { passive: true, capture: true });
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      window.removeEventListener("resize", reposition);
+      window.removeEventListener("scroll", reposition, { capture: true });
+    };
+  }, [open, updateDirection]);
 
   function choose(index: number) {
     setSelectedIndex(index);
@@ -62,7 +80,7 @@ export function SelectMenu({ id, name, defaultValue = "", options, ariaLabel, re
   }
 
   return (
-    <div className={`select-menu${open ? " open" : ""}`} ref={root}>
+    <div className={`select-menu${open ? " open" : ""}${openUp ? " open-up" : ""}`} ref={root}>
       <input type="hidden" name={name} value={selected?.value ?? ""} required={required} />
       <button
         id={id}

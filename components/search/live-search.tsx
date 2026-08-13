@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "@/components/navigation/revenue-link";
 import { usePathname } from "next/navigation";
-import { AlertCircle, Film, LoaderCircle, Play, Search, Tv, UserRound, X } from "lucide-react";
+import { AlertCircle, Clock3, Film, Flame, LoaderCircle, Play, Search, Trash2, Tv, UserRound, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SearchSuggestion, SearchSuggestions } from "@/lib/catalog/repository";
 import { AdSlot } from "@/components/ads/ad-slot";
@@ -14,6 +14,26 @@ const groupDetails = {
   movies: { label: "Movies", icon: Film },
   tvShows: { label: "TV Shows", icon: Tv },
 } as const;
+
+const SEARCH_HISTORY_KEY = "actrexx:search-history";
+const QUICK_SEARCHES = [
+  { label: "Sydney Sweeney", href: "/actress/sydney-sweeney" },
+  { label: "Ana de Armas", href: "/actress/ana-de-armas" },
+  { label: "Alexandra Daddario", href: "/actress/alexandra-daddario" },
+  { label: "Popular videos", href: "/most-popular" },
+  { label: "Top rated", href: "/top-rated" },
+  { label: "Movie scenes", href: "/movie" },
+] as const;
+
+function initialSearchHistory() {
+  if (typeof window === "undefined") return [];
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(SEARCH_HISTORY_KEY) || "[]") as unknown;
+    return Array.isArray(stored) ? stored.filter((item): item is string => typeof item === "string" && item.trim().length >= 2).slice(0, 6) : [];
+  } catch {
+    return [];
+  }
+}
 
 export function LiveSearch() {
   const pathname = usePathname();
@@ -29,12 +49,30 @@ export function LiveSearch() {
   const [activeIndex, setActiveIndex] = useState(-1);
   const [requestError, setRequestError] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [history, setHistory] = useState<string[]>(initialSearchHistory);
 
   const groups = useMemo(() => results ? (["videos", "actresses", "movies", "tvShows"] as const)
     .map((key) => ({ key, items: results[key] }))
     .filter((group) => group.items.length > 0) : [], [results]);
   const flatResults = useMemo(() => groups.flatMap((group) => group.items), [groups]);
   const hasResults = flatResults.length > 0;
+  const trimmedQuery = query.trim();
+  const showQuickSuggestions = open && trimmedQuery.length < 2;
+
+  function saveSearch(value: string) {
+    const normalized = value.trim().replace(/\s+/g, " ").slice(0, 80);
+    if (normalized.length < 2) return;
+    setHistory((current) => {
+      const next = [normalized, ...current.filter((item) => item.toLowerCase() !== normalized.toLowerCase())].slice(0, 6);
+      try { window.localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(next)); } catch { /* local storage is optional */ }
+      return next;
+    });
+  }
+
+  function clearHistory() {
+    setHistory([]);
+    try { window.localStorage.removeItem(SEARCH_HISTORY_KEY); } catch { /* local storage is optional */ }
+  }
 
   useEffect(() => {
     const focusSearch = (event: KeyboardEvent) => {
@@ -143,6 +181,7 @@ export function LiveSearch() {
       setActiveIndex(flatResults.length - 1);
     } else if (event.key === "Enter" && activeIndex >= 0) {
       event.preventDefault();
+      saveSearch(query);
       setOpen(false);
       window.location.assign(flatResults[activeIndex].href);
     }
@@ -163,7 +202,7 @@ export function LiveSearch() {
           if (!mobileSearchOpen) window.requestAnimationFrame(() => input.current?.focus());
         }}
       ><Search size={18} aria-hidden="true" /></button>
-      <form id="header-search-form" className="header-search" action="/search" role="search">
+      <form id="header-search-form" className="header-search" action="/search" role="search" onSubmit={() => saveSearch(query)}>
         <label className="sr-only" htmlFor="site-search">Search videos, actresses, movies and TV shows</label>
         <Search size={16} aria-hidden="true" />
         <input
@@ -184,14 +223,33 @@ export function LiveSearch() {
           aria-busy={loading}
           aria-activedescendant={activeIndex >= 0 ? flatResults[activeIndex]?.id : undefined}
           onChange={(event) => onChange(event.target.value)}
-          onFocus={() => query.trim().length >= 2 && setOpen(true)}
+          onFocus={() => setOpen(true)}
           onKeyDown={onKeyDown}
         />
         {loading && <LoaderCircle className="search-spinner" size={15} aria-label="Searching" />}
         {!loading && query && <button type="button" aria-label="Clear search" onClick={clear}><X size={15} aria-hidden="true" /></button>}
       </form>
-      {open && query.trim().length >= 2 && (
-        <div className="search-popover" id="live-search-results" role="listbox" aria-label="Search suggestions">
+      {open && (
+        <div className="search-popover" id="live-search-results" role={showQuickSuggestions ? "dialog" : "listbox"} aria-label="Search suggestions">
+          {showQuickSuggestions && (
+            <div className="search-quick">
+              {history.length > 0 && (
+                <section>
+                  <header><h2><Clock3 size={13} aria-hidden="true" />Recent searches</h2><button type="button" onClick={clearHistory}><Trash2 size={13} aria-hidden="true" />Clear</button></header>
+                  <div className="search-chip-list">
+                    {history.map((item) => <Link href={`/search?q=${encodeURIComponent(item)}`} key={item} onClick={() => { saveSearch(item); setOpen(false); }}>{item}</Link>)}
+                  </div>
+                </section>
+              )}
+              <section>
+                <header><h2><Flame size={13} aria-hidden="true" />Quick suggestions</h2></header>
+                <div className="search-quick-links">
+                  {QUICK_SEARCHES.map((item) => <Link href={item.href} key={item.href} onClick={() => setOpen(false)}>{item.label}</Link>)}
+                </div>
+              </section>
+            </div>
+          )}
+          {!showQuickSuggestions && <>
           {groups.map((group) => {
             const details = groupDetails[group.key];
             const Icon = details.icon;
@@ -201,7 +259,7 @@ export function LiveSearch() {
                 {group.items.map((item) => {
                   resultIndex += 1;
                   const index = resultIndex;
-                  return <SearchResult item={item} active={index === activeIndex} close={() => setOpen(false)} key={item.id} />;
+                  return <SearchResult item={item} active={index === activeIndex} close={() => { saveSearch(query); setOpen(false); }} key={item.id} />;
                 })}
               </section>
             );
@@ -209,7 +267,8 @@ export function LiveSearch() {
           {!loading && requestError && <div className="search-empty search-failed"><AlertCircle size={18} aria-hidden="true" /><strong>Search is temporarily unavailable</strong><span>Wait a moment and try again.</span></div>}
           {!loading && !requestError && !hasResults && <div className="search-empty"><strong>No matches found</strong><span>Try a different actress, movie or TV show.</span></div>}
           {hasResults && <div className="search-ad" role="presentation"><AdSlot active={open} placement="search-compact" /></div>}
-          <Link className="search-view-all" href={`/search?q=${encodeURIComponent(query.trim())}`} onClick={() => setOpen(false)}>View all results</Link>
+          <Link className="search-view-all" href={`/search?q=${encodeURIComponent(query.trim())}`} onClick={() => { saveSearch(query); setOpen(false); }}>View all results</Link>
+          </>}
         </div>
       )}
     </div>

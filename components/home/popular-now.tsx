@@ -17,6 +17,7 @@ export function PopularNow({ videos }: { videos: Video[] }) {
         </div>
         <nav aria-label="Popular video links">
           <Link href="/reels">View all<ArrowUpRight size={14} aria-hidden="true" /></Link>
+          <Link href="/most-popular">Popular page<ArrowUpRight size={14} aria-hidden="true" /></Link>
         </nav>
       </header>
       <div className="popular-now-grid">

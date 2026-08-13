@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Clapperboard, ExternalLink } from "lucide-react";
+import { Check, Clapperboard, ExternalLink, Share2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Video, VideoType } from "@/lib/videos";
 import Link from "@/components/navigation/revenue-link";
@@ -34,6 +34,26 @@ function typeLabel(type: VideoType) {
 function ReelScene({ active, video }: { active: boolean; video: ReelVideo }) {
   const ratio = Number(video.playerAspectRatio);
   const safeRatio = Number.isFinite(ratio) && ratio >= 1 && ratio <= 3 ? ratio : 16 / 9;
+  const [shared, setShared] = useState(false);
+
+  async function shareScene() {
+    const url = `${window.location.origin}/watch/${video.slug}`;
+    try {
+      if (navigator.share) await navigator.share({ title: video.sceneTitle, text: `${video.sceneTitle} on Actrexx`, url });
+      else await navigator.clipboard.writeText(url);
+      setShared(true);
+      window.setTimeout(() => setShared(false), 1_800);
+    } catch (error) {
+      if ((error as DOMException)?.name !== "AbortError") {
+        try {
+          await navigator.clipboard.writeText(url);
+          setShared(true);
+          window.setTimeout(() => setShared(false), 1_800);
+        } catch { /* clipboard permissions can be unavailable */ }
+      }
+    }
+  }
+
   return (
     <div className={`reel-scene${active ? " active" : ""}`}>
       <Image className="reel-scene-backdrop" src={video.thumbnail} alt="" fill sizes="430px" unoptimized aria-hidden="true" />
@@ -50,6 +70,10 @@ function ReelScene({ active, video }: { active: boolean; video: ReelVideo }) {
         ) : <Image src={video.thumbnail} alt={video.sceneTitle} fill sizes="430px" unoptimized />}
       </div>
       <div className="reel-scene-topline"><Clapperboard size={14} aria-hidden="true" /><span>Popular scene</span><i /> <span>{typeLabel(video.type)}</span></div>
+      <button className="reel-share" type="button" onClick={shareScene} aria-label={`Share ${video.sceneTitle}`}>
+        {shared ? <Check size={16} aria-hidden="true" /> : <Share2 size={16} aria-hidden="true" />}
+        <span>{shared ? "Copied" : "Share"}</span>
+      </button>
       <div className="reel-scene-copy">
         {video.actresses.length > 0 && <p>{video.actresses.slice(0, 3).join(", ")}</p>}
         <h2>{video.sceneTitle}</h2>
