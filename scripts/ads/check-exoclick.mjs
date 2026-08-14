@@ -50,7 +50,6 @@ for (const placement of optionalPlacements) {
   }
 }
 
-if (!process.env.ADS_TXT?.trim()) warnings.push("ADS_TXT is missing; /ads.txt will return 404 until authorized seller records are supplied");
 if (!process.env.SITE_CONTACT_EMAIL?.trim()) issues.push("SITE_CONTACT_EMAIL is missing");
 if (!process.env.SITE_DMCA_EMAIL?.trim()) issues.push("SITE_DMCA_EMAIL is missing");
 
@@ -58,6 +57,7 @@ console.log(`Ads enabled: ${enabled ? "yes" : "no"}`);
 console.log(`Provider: ExoClick async ad-provider.js (magsrv and pemsrv)`);
 console.log(`Lazy loading: enabled`);
 console.log(`Restricted ad types: ${process.env.NEXT_PUBLIC_EXOCLICK_BLOCK_AD_TYPES?.trim() || "none beyond zone-level filters"}`);
+console.log(`Ads.txt: ${process.env.ADS_TXT?.trim() ? "configured" : "not supplied by the current ad partner (optional route remains disabled)"}`);
 
 if (warnings.length) {
   console.log("Warnings:");

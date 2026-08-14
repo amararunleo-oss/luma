@@ -1,8 +1,11 @@
 import { actresses as seedActresses, slugify, tags as seedTags, videos as seedVideos, years as seedYears, type Video, type VideoType } from "@/lib/videos";
 import { getD1Database } from "@/lib/cloudflare/d1-http";
-import { catalogCacheKey, withCatalogCache } from "@/lib/cache/upstash";
+import { catalogCacheKey, withCatalogCache, withLocalCatalogCache } from "@/lib/cache/upstash";
+import { ADULT_CATEGORIES, AGE_RISK_TERMS, adultCategoryMatchTerms } from "@/lib/adult-taxonomy";
+import { PORNHUB_TEST_VIDEO, isPornhubTestVideo } from "@/lib/pornhub-test-video";
+import { getLocalPornhubRelated, getLocalPornhubVideo, getLocalPornhubVideos, listLocalPornhubVideos, localPornhubCategoryCounts, searchLocalPornhubVideos } from "@/lib/pornhub-local-catalog";
 
-export const DEFAULT_PAGE_SIZE = 24;
+export const DEFAULT_PAGE_SIZE = 25;
 
 const POPULAR_ACTRESS_SLUGS = [
   "sydney-sweeney",
@@ -29,12 +32,15 @@ export type QueryOptions = {
   type?: VideoType;
   actressSlug?: string;
   tagSlug?: string;
+  tagSlugs?: readonly string[];
   workSlug?: string;
   year?: number;
+  minYear?: number;
   search?: string;
   order?: CatalogOrder;
   duration?: DurationFilter;
   minRating?: number;
+  catalog?: "celebrity" | "porn";
 };
 
 export type DirectoryKind = "actress" | "movie" | "tv_show";
@@ -74,7 +80,7 @@ export type SearchSuggestion = {
   label: string;
   href: string;
   meta: string;
-  group: "videos" | "actresses" | "movies" | "tvShows";
+  group: "videos" | "actresses" | "movies" | "tvShows" | "categories";
   image?: string;
 };
 export type SearchSuggestions = {
@@ -83,6 +89,7 @@ export type SearchSuggestions = {
   actresses: SearchSuggestion[];
   movies: SearchSuggestion[];
   tvShows: SearchSuggestion[];
+  categories: SearchSuggestion[];
 };
 export type CatalogPage = { items: Video[]; total: number; page: number; pageSize: number; database: boolean };
 type DatabaseResult<T> = { value: T; database: boolean };
@@ -228,16 +235,37 @@ function toVideo(row: VideoRow): Video {
 }
 
 function whereClause(options: QueryOptions) {
-  const where = ["v.is_active = 1"];
+  const where = [
+    "v.is_active = 1",
+    "lower(v.display_title) NOT LIKE '%chaturbate review%'",
+    "lower(v.original_title) NOT LIKE '%chaturbate review%'",
+  ];
   const values: unknown[] = [];
+  if (options.catalog === "porn") {
+    where.push("lower(v.source_url) LIKE '%pornhub.%'");
+    for (const term of AGE_RISK_TERMS) {
+      const pattern = `%${term}%`;
+      where.push("lower(v.original_title) NOT LIKE ? AND lower(v.description) NOT LIKE ? AND NOT EXISTS (SELECT 1 FROM video_tags vtr JOIN tags tr ON tr.id = vtr.tag_id WHERE vtr.video_id = v.id AND lower(tr.name) LIKE ?)");
+      values.push(pattern, pattern, pattern);
+    }
+  }
+  if (options.catalog === "celebrity") where.push("lower(v.source_url) NOT LIKE '%pornhub.%'");
   if (options.sort === "latest") where.push("EXISTS (SELECT 1 FROM video_listings vl WHERE vl.video_id = v.id AND vl.listing = 'latest')");
   if (options.sort === "popular") where.push("EXISTS (SELECT 1 FROM video_listings vl WHERE vl.video_id = v.id AND vl.listing = 'popular')");
   if (options.sort === "top-rated") where.push("EXISTS (SELECT 1 FROM video_listings vl WHERE vl.video_id = v.id AND vl.listing = 'top_rated')");
   if (options.type) { where.push("v.type = ?"); values.push(options.type === "TV Show" ? "tv_show" : "movie"); }
   if (options.actressSlug) { where.push("EXISTS (SELECT 1 FROM video_actresses va2 JOIN actresses a2 ON a2.id = va2.actress_id WHERE va2.video_id = v.id AND a2.slug = ?)"); values.push(options.actressSlug); }
   if (options.tagSlug) { where.push("EXISTS (SELECT 1 FROM video_tags vt2 JOIN tags t2 ON t2.id = vt2.tag_id WHERE vt2.video_id = v.id AND t2.slug = ?)"); values.push(options.tagSlug); }
+  if (options.tagSlugs?.length) {
+    const slugs = [...new Set(options.tagSlugs.map((slug) => slug.trim()).filter(Boolean))].slice(0, 12);
+    if (slugs.length) {
+      where.push(`EXISTS (SELECT 1 FROM video_tags vt3 JOIN tags t3 ON t3.id = vt3.tag_id WHERE vt3.video_id = v.id AND t3.slug IN (${slugs.map(() => "?").join(",")}))`);
+      values.push(...slugs);
+    }
+  }
   if (options.workSlug) { where.push("w.slug = ?"); values.push(options.workSlug); }
   if (options.year) { where.push("v.year = ?"); values.push(options.year); }
+  if (options.minYear) { where.push("v.year >= ?"); values.push(options.minYear); }
   if (options.minRating) { where.push("v.rating >= ?"); values.push(options.minRating); }
   if (options.duration === "short") where.push("v.duration_seconds > 0 AND v.duration_seconds < 300");
   if (options.duration === "medium") where.push("v.duration_seconds >= 300 AND v.duration_seconds < 900");
@@ -254,12 +282,18 @@ function fallback(options: QueryOptions): CatalogPage {
   const page = Math.max(1, options.page ?? 1);
   const pageSize = Math.max(1, Math.min(48, options.pageSize ?? DEFAULT_PAGE_SIZE));
   let items = [...seedVideos];
+  if (options.catalog === "porn") items = [];
   if (options.sort === "latest") items = [];
   if (options.type) items = items.filter((video) => video.type === options.type);
   if (options.actressSlug) items = items.filter((video) => video.actresses.some((name) => slugify(name) === options.actressSlug));
   if (options.tagSlug) items = items.filter((video) => video.tags.some((name) => slugify(name) === options.tagSlug));
+  if (options.tagSlugs?.length) {
+    const slugs = new Set(options.tagSlugs);
+    items = items.filter((video) => video.tags.some((name) => slugs.has(slugify(name))));
+  }
   if (options.workSlug) items = items.filter((video) => slugify(video.workTitle) === options.workSlug);
   if (options.year) items = items.filter((video) => video.year === options.year);
+  if (options.minYear) items = items.filter((video) => video.year >= options.minYear!);
   if (options.minRating) items = items.filter((video) => video.rating >= options.minRating!);
   if (options.duration) {
     const seconds = (video: Video) => {
@@ -345,18 +379,42 @@ async function listVideosRemoteCached(options: QueryOptions = {}): Promise<Catal
     tagSlug: options.tagSlug ?? null,
     workSlug: options.workSlug ?? null,
     year: options.year ?? null,
+    minYear: options.minYear ?? null,
     search: searchTerm(options.search) || null,
     order: options.order ?? null,
     duration: options.duration ?? null,
     minRating: options.minRating ?? null,
   };
   const ttl = normalized.search ? 15 * 60 : 6 * 60 * 60;
-  return withCatalogCache(catalogCacheKey("videos", normalized), ttl, () => listVideosUncached(options), {
+  const key = catalogCacheKey("videos", normalized);
+  if (normalized.search) return withLocalCatalogCache(key, ttl, () => listVideosUncached(options));
+  return withCatalogCache(key, ttl, () => listVideosUncached(options), {
     shouldCache: (result) => result.database,
   });
 }
 
 export async function listVideos(options: QueryOptions = {}): Promise<CatalogPage> {
+  const localOptions = {
+    page: options.page,
+    pageSize: options.pageSize,
+    tagSlug: options.tagSlug,
+    tagSlugs: options.tagSlugs,
+    year: options.year,
+    minYear: options.minYear,
+    search: options.search,
+    order: options.order ?? (options.sort === "popular" ? "popular" : options.sort === "top-rated" || options.sort === "rating" ? "rating" : options.sort === "latest" ? "latest" : undefined),
+    duration: options.duration,
+    minRating: options.minRating,
+  } as const;
+  if (options.catalog === "porn") return (await listLocalPornhubVideos(localOptions)) ?? listVideosRemoteCached(options);
+  if (!options.catalog && options.search?.trim()) {
+    const [remote, local] = await Promise.all([listVideosRemoteCached(options), listLocalPornhubVideos(localOptions)]);
+    if (!local?.items.length) return remote;
+    const pageSize = Math.max(1, Math.min(48, options.pageSize ?? DEFAULT_PAGE_SIZE));
+    const merged = new Map<string, Video>();
+    [...remote.items, ...local.items].sort((a, b) => (b.views ?? 0) - (a.views ?? 0) || b.rating - a.rating).forEach((video) => merged.set(`${video.source ?? "videocelebs"}:${video.id}`, video));
+    return { items: [...merged.values()].slice(0, pageSize), total: remote.total + local.total, page: remote.page, pageSize, database: remote.database };
+  }
   return listVideosRemoteCached(options);
 }
 
@@ -383,6 +441,7 @@ export async function getPopularVideos(limit = 100): Promise<Video[]> {
 }
 
 async function getVideoBySlugUncached(slug: string): Promise<DatabaseResult<Video | null>> {
+  if (isPornhubTestVideo(slug)) return { value: PORNHUB_TEST_VIDEO, database: false };
   const db = database();
   const seedVideo = () => seedVideos.find((video) => video.slug === slug) ?? null;
   if (!db) return { value: seedVideo(), database: false };
@@ -414,7 +473,7 @@ async function getVideoBySlugRemoteCached(slug: string) {
 }
 
 export async function getVideoBySlug(slug: string) {
-  return getVideoBySlugRemoteCached(slug);
+  return (await getLocalPornhubVideo(slug)) ?? getVideoBySlugRemoteCached(slug);
 }
 
 function relatedScore(current: Video, candidate: Video) {
@@ -503,7 +562,7 @@ async function getRelatedVideosRemoteCached(video: Video, limit = 8): Promise<Vi
 }
 
 export async function getRelatedVideos(video: Video, limit = 8): Promise<Video[]> {
-  return getRelatedVideosRemoteCached(video, Math.max(1, Math.min(12, limit)));
+  return (await getLocalPornhubRelated(video, limit)) ?? getRelatedVideosRemoteCached(video, Math.max(1, Math.min(12, limit)));
 }
 
 function seedWorks(type: VideoType): DirectoryEntry[] {
@@ -665,7 +724,7 @@ export async function listDirectory(options: DirectoryOptions): Promise<Director
 }
 
 function emptySearch(query = ""): SearchSuggestions {
-  return { query, videos: [], actresses: [], movies: [], tvShows: [] };
+  return { query, videos: [], actresses: [], movies: [], tvShows: [], categories: [] };
 }
 
 async function searchCatalogUncached(query: string, limitPerGroup = 5): Promise<DatabaseResult<SearchSuggestions>> {
@@ -716,6 +775,7 @@ async function searchCatalogUncached(query: string, limitPerGroup = 5): Promise<
           actresses: (actressResult.results ?? []).map((item) => ({ id: `actress-${item.id}`, label: item.label, href: `/actress/${item.slug}`, meta: "Actress", group: "actresses" })),
           movies: (movieResult.results ?? []).map((item) => ({ id: `movie-${item.id}`, label: item.label, href: `/movie/title/${item.slug}`, meta: "Movie", group: "movies" })),
           tvShows: (tvResult.results ?? []).map((item) => ({ id: `tv-${item.id}`, label: item.label, href: `/tv-show/title/${item.slug}`, meta: "TV Show", group: "tvShows" })),
+          categories: [],
         },
         database: true,
       };
@@ -732,6 +792,7 @@ async function searchCatalogUncached(query: string, limitPerGroup = 5): Promise<
       actresses: actresses.map((item) => ({ id: `actress-${item.slug}`, label: item.name, href: `/actress/${item.slug}`, meta: "Actress", group: "actresses" })),
       movies: movieEntries.map((item) => ({ id: `movie-${item.slug}`, label: item.name, href: `/movie/title/${item.slug}`, meta: "Movie", group: "movies" })),
       tvShows: tvEntries.map((item) => ({ id: `tv-${item.slug}`, label: item.name, href: `/tv-show/title/${item.slug}`, meta: "TV Show", group: "tvShows" })),
+      categories: [],
     },
     database: false,
   };
@@ -741,14 +802,33 @@ async function searchCatalogRemoteCached(query: string, limitPerGroup = 5): Prom
   const term = searchTerm(query);
   if (term.length < 2) return emptySearch(term);
   const limit = Math.max(1, Math.min(8, limitPerGroup));
-  const result = await withCatalogCache(catalogCacheKey("search", [term, limit]), 15 * 60, () => searchCatalogUncached(term, limit), {
-    shouldCache: (outcome) => outcome.database,
-  });
+  const result = await withLocalCatalogCache(catalogCacheKey("search", [term, limit]), 15 * 60, () => searchCatalogUncached(term, limit));
   return result.value;
 }
 
 export async function searchCatalog(query: string, limitPerGroup = 5): Promise<SearchSuggestions> {
-  return searchCatalogRemoteCached(query, limitPerGroup);
+  const term = searchTerm(query);
+  const limit = Math.max(1, Math.min(8, limitPerGroup));
+  const [remote, localVideos] = await Promise.all([searchCatalogRemoteCached(term, limit), searchLocalPornhubVideos(term, limit)]);
+  const normalizedTerm = slugify(term);
+  const categories = term.length < 2 ? [] : ADULT_CATEGORIES
+    .filter((category) => [slugify(category.name), ...adultCategoryMatchTerms(category)].some((value) => value.includes(normalizedTerm) || normalizedTerm.includes(value)))
+    .slice(0, limit)
+    .map((category) => ({ id: `category-${category.slug}`, label: category.name, href: `/porn-category/${category.slug}`, meta: "Adult category", group: "categories" as const }));
+  const localSuggestions = localVideos.map((video) => ({ id: `porn-video-${video.id}`, label: video.sceneTitle, href: `/watch/${video.slug}`, meta: `${video.year} · Adult video`, group: "videos" as const, image: video.thumbnail }));
+  const videos = new Map(remote.videos.map((item) => [item.href, item]));
+  localSuggestions.forEach((item) => videos.set(item.href, item));
+  return { ...remote, query: term, videos: [...videos.values()].slice(0, limit), categories };
+}
+
+export async function getAdultCategoryCounts() {
+  const local = await localPornhubCategoryCounts();
+  if (Object.values(local).some((count) => count > 0)) return local;
+  const results = await Promise.all(ADULT_CATEGORIES.map(async (category) => [
+    category.slug,
+    (await listVideos({ catalog: "porn", tagSlugs: adultCategoryMatchTerms(category), page: 1, pageSize: 1 })).total,
+  ] as const));
+  return Object.fromEntries(results) as Record<string, number>;
 }
 
 async function getTaxonomyUncached() {
@@ -789,6 +869,7 @@ export async function getTaxonomy() {
 }
 
 export async function getCatalogSitemapCounts(): Promise<CatalogSitemapCounts> {
+  const localVideoCount = (await getLocalPornhubVideos()).length;
   const db = database();
   if (db) {
     try {
@@ -796,11 +877,11 @@ export async function getCatalogSitemapCounts(): Promise<CatalogSitemapCounts> {
         db.prepare("SELECT COUNT(*) AS count FROM videos WHERE is_active = 1").first<{ count: number }>(),
         db.prepare("SELECT COUNT(*) AS count FROM actresses WHERE video_count > 0").first<{ count: number }>(),
         db.prepare("SELECT COUNT(*) AS count FROM works w WHERE EXISTS (SELECT 1 FROM videos v WHERE v.work_id = w.id AND v.is_active = 1)").first<{ count: number }>(),
-        db.prepare("SELECT COUNT(*) AS count FROM tags WHERE video_count > 0").first<{ count: number }>(),
+        db.prepare("SELECT COUNT(*) AS count FROM tags WHERE video_count >= 8").first<{ count: number }>(),
         db.prepare("SELECT COUNT(DISTINCT year) AS count FROM videos WHERE is_active = 1 AND year IS NOT NULL").first<{ count: number }>(),
       ]);
       return {
-        videos: Number(videos?.count ?? 0),
+        videos: Number(videos?.count ?? 0) + localVideoCount,
         actresses: Number(actresses?.count ?? 0),
         works: Number(works?.count ?? 0),
         taxonomy: Number(tags?.count ?? 0) + Number(years?.count ?? 0),
@@ -810,7 +891,7 @@ export async function getCatalogSitemapCounts(): Promise<CatalogSitemapCounts> {
 
   const actressCount = new Set(seedVideos.flatMap((video) => video.actresses)).size;
   const workCount = new Set(seedVideos.map((video) => `${video.type}:${video.workTitle}`)).size;
-  return { videos: seedVideos.length, actresses: actressCount, works: workCount, taxonomy: seedTags.length + seedYears.length };
+  return { videos: seedVideos.length + localVideoCount, actresses: actressCount, works: workCount, taxonomy: seedTags.filter((tag) => tag.count >= 8).length + seedYears.length };
 }
 
 export async function getCatalogSitemapChunk(section: CatalogSitemapSection, offset: number, limit: number): Promise<CatalogSitemapEntry[]> {
@@ -820,8 +901,20 @@ export async function getCatalogSitemapChunk(section: CatalogSitemapSection, off
   if (db) {
     try {
       if (section === "videos") {
-        const result = await db.prepare("SELECT slug, updated_at AS updatedAt FROM videos WHERE is_active = 1 ORDER BY id LIMIT ? OFFSET ?").bind(safeLimit, safeOffset).all<{ slug: string; updatedAt: string }>();
-        return (result.results ?? []).map((item) => ({ path: `/watch/${item.slug}`, updatedAt: item.updatedAt }));
+        const [count, localVideos] = await Promise.all([
+          db.prepare("SELECT COUNT(*) AS count FROM videos WHERE is_active = 1").first<{ count: number }>(),
+          getLocalPornhubVideos(),
+        ]);
+        const databaseCount = Number(count?.count ?? 0);
+        const result = safeOffset < databaseCount
+          ? await db.prepare("SELECT slug, updated_at AS updatedAt FROM videos WHERE is_active = 1 ORDER BY id LIMIT ? OFFSET ?").bind(safeLimit, safeOffset).all<{ slug: string; updatedAt: string }>()
+          : { results: [] as { slug: string; updatedAt: string }[] };
+        const remote = (result.results ?? []).map((item) => ({ path: `/watch/${item.slug}`, updatedAt: item.updatedAt }));
+        const localOffset = Math.max(0, safeOffset - databaseCount);
+        return [
+          ...remote,
+          ...localVideos.slice(localOffset, localOffset + safeLimit - remote.length).map((video) => ({ path: `/watch/${video.slug}`, updatedAt: video.publishedAt })),
+        ];
       }
       if (section === "actresses") {
         const result = await db.prepare("SELECT slug, updated_at AS updatedAt FROM actresses WHERE video_count > 0 ORDER BY id LIMIT ? OFFSET ?").bind(safeLimit, safeOffset).all<{ slug: string; updatedAt: string }>();
@@ -832,7 +925,7 @@ export async function getCatalogSitemapChunk(section: CatalogSitemapSection, off
         return (result.results ?? []).map((item) => ({ path: `/${item.type === "movie" ? "movie" : "tv-show"}/title/${item.slug}`, updatedAt: item.updatedAt }));
       }
       const [tagResult, yearResult] = await Promise.all([
-        db.prepare("SELECT slug FROM tags WHERE video_count > 0 ORDER BY id").all<{ slug: string }>(),
+        db.prepare("SELECT slug FROM tags WHERE video_count >= 8 ORDER BY id").all<{ slug: string }>(),
         db.prepare("SELECT year, MAX(updated_at) AS updatedAt FROM videos WHERE is_active = 1 AND year IS NOT NULL GROUP BY year ORDER BY year DESC").all<{ year: number; updatedAt: string }>(),
       ]);
       return [
@@ -843,11 +936,12 @@ export async function getCatalogSitemapChunk(section: CatalogSitemapSection, off
   }
 
   const timestamp = new Date(0).toISOString();
+  const localVideos = await getLocalPornhubVideos();
   const entries: Record<CatalogSitemapSection, CatalogSitemapEntry[]> = {
-    videos: seedVideos.map((video) => ({ path: `/watch/${video.slug}`, updatedAt: timestamp })),
+    videos: [...seedVideos, ...localVideos].map((video) => ({ path: `/watch/${video.slug}`, updatedAt: video.publishedAt ?? timestamp })),
     actresses: [...new Set(seedVideos.flatMap((video) => video.actresses))].map((name) => ({ path: `/actress/${slugify(name)}`, updatedAt: timestamp })),
     works: [...new Map(seedVideos.map((video) => [`${video.type}:${video.workTitle}`, video])).values()].map((video) => ({ path: `/${video.type === "Movie" ? "movie" : "tv-show"}/title/${slugify(video.workTitle)}`, updatedAt: timestamp })),
-    taxonomy: [...seedTags.map((tag) => ({ path: `/tag/${tag.slug}` })), ...seedYears.map((year) => ({ path: `/year/${year}` }))],
+    taxonomy: [...seedTags.filter((tag) => tag.count >= 8).map((tag) => ({ path: `/tag/${tag.slug}` })), ...seedYears.map((year) => ({ path: `/year/${year}` }))],
   };
   return entries[section].slice(safeOffset, safeOffset + safeLimit);
 }
@@ -865,7 +959,12 @@ export async function getVideoSitemapChunk(offset: number, limit: number): Promi
   const db = database();
   if (db) {
     try {
-      const result = await db.prepare(`
+      const [count, localVideos] = await Promise.all([
+        db.prepare("SELECT COUNT(*) AS count FROM videos WHERE is_active = 1").first<{ count: number }>(),
+        getLocalPornhubVideos(),
+      ]);
+      const databaseCount = Number(count?.count ?? 0);
+      const result = safeOffset < databaseCount ? await db.prepare(`
         SELECT
           v.slug,
           v.display_title AS title,
@@ -892,8 +991,8 @@ export async function getVideoSitemapChunk(offset: number, limit: number): Promi
         year: number | null;
         publicationDate: string | null;
         updatedAt: string | null;
-      }>();
-      return (result.results ?? []).map((item) => ({
+      }>() : { results: [] as Array<{ slug: string; title: string; description: string; thumbnailKey: string; embedId: number; durationSeconds: number; year: number | null; publicationDate: string | null; updatedAt: string | null }> };
+      const remote = (result.results ?? []).map((item) => ({
         path: `/watch/${item.slug}`,
         title: item.title,
         description: item.description,
@@ -903,10 +1002,22 @@ export async function getVideoSitemapChunk(offset: number, limit: number): Promi
         publicationDate: sitemapDate(item.publicationDate, item.year),
         updatedAt: item.updatedAt ?? undefined,
       }));
+      const localOffset = Math.max(0, safeOffset - databaseCount);
+      return [...remote, ...localVideos.slice(localOffset, localOffset + safeLimit - remote.length).map((video) => ({
+        path: `/watch/${video.slug}`,
+        title: video.sceneTitle,
+        description: video.description,
+        thumbnail: video.thumbnail,
+        playerUrl: video.embedUrl,
+        durationSeconds: Math.max(1, video.duration.split(":").map(Number).reduce((total, value) => total * 60 + value, 0)),
+        publicationDate: sitemapDate(video.publishedAt, video.year),
+        updatedAt: video.publishedAt,
+      }))];
     } catch { /* use the bundled seed catalog */ }
   }
 
-  return seedVideos.slice(safeOffset, safeOffset + safeLimit).map((video) => ({
+  const localVideos = await getLocalPornhubVideos();
+  return [...seedVideos, ...localVideos].slice(safeOffset, safeOffset + safeLimit).map((video) => ({
     path: `/watch/${video.slug}`,
     title: video.sceneTitle,
     description: video.description,

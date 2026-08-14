@@ -25,7 +25,7 @@ export default async function YearPage({ params, searchParams }: { params: Promi
   if (!Number.isInteger(parsed) || parsed < 1900 || parsed > new Date().getFullYear() + 2) notFound();
   const filters = { ...parseCatalogFilters(query), year: undefined };
   const [result, origin] = await Promise.all([
-    listVideos({ ...filterQueryOptions(filters), year: parsed, page: pageNumber(query.page), pageSize: 24 }),
+    listVideos({ catalog: "celebrity", ...filterQueryOptions(filters), year: parsed, page: pageNumber(query.page), pageSize: 25 }),
     configuredSiteOrigin(),
   ]);
   if (result.total === 0 && !hasCatalogFilters(filters)) notFound();

@@ -11,8 +11,8 @@ export default async function Search({ searchParams }: { searchParams: Promise<{
   const query = await searchParams;
   const term = (query.q ?? "").trim().toLowerCase();
   const [result, discovery] = term
-    ? await Promise.all([listVideos({ search: term, page: pageNumber(query.page), pageSize: 24 }), searchCatalog(term, 8)])
-    : [{ items: [], total: 0, page: 1, pageSize: 24 }, await searchCatalog("")];
+    ? await Promise.all([listVideos({ search: term, page: pageNumber(query.page), pageSize: 25 }), searchCatalog(term, 8)])
+    : [{ items: [], total: 0, page: 1, pageSize: 25 }, await searchCatalog("")];
   const basePath = term ? `/search?q=${encodeURIComponent(query.q ?? "")}` : "/search";
   return (
     <>
@@ -20,7 +20,7 @@ export default async function Search({ searchParams }: { searchParams: Promise<{
       <CatalogPage
         eyebrow="Search"
         title={term ? `Results for “${query.q}”` : "Search"}
-        description={term ? "Matches across actresses, movies, TV shows and tags." : "Search by actress, movie, TV show or tag."}
+        description={term ? "Matches across videos, celebrities, movies, TV shows and categories." : "Search by video, celebrity, title or adult category."}
         items={result.items}
         total={result.total}
         page={result.page}

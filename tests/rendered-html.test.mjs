@@ -60,7 +60,7 @@ test("keeps mobile browse and filters outside fragile header layout behavior", a
 
   assert.match(drawer, /createPortal\(drawer, document\.body\)/);
   assert.match(drawer, /aria-expanded=\{open\}/);
-  assert.match(drawer, /Popular actresses/);
+  assert.match(drawer, /Popular celebrities/);
   assert.match(drawer, /Popular tags/);
   assert.match(drawer, /<details>/);
   assert.match(drawer, /fetch\("\/api\/navigation"/);
@@ -72,7 +72,7 @@ test("keeps mobile browse and filters outside fragile header layout behavior", a
   assert.match(css, /height:100dvh/);
   assert.match(css, /translate3d/);
   assert.match(css, /\.drawer-taxonomy-links \{ max-height:224px/);
-  assert.match(css, /\.browse-drawer nav > a/);
+  assert.match(css, /\.browse-drawer > nav > a/);
   assert.match(css, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
 });
 
@@ -118,7 +118,7 @@ test("keeps mobile header controls compact and preserves applied filter values",
   assert.match(filters, /key=\{`year-/);
   assert.match(filters, /values\.year \? `\$\{values\.year\} · Filters`/);
   assert.match(css, /\.live-search\.mobile-open \.header-search/);
-  assert.match(css, /\.browse-trigger \{ order:3;/);
+  assert.match(css, /\.browse-trigger \{ order:4;/);
 });
 
 test("searches source tags, descriptions, and common keyword aliases", async () => {
@@ -131,6 +131,27 @@ test("searches source tags, descriptions, and common keyword aliases", async () 
   assert.match(repository, /WHERE video_count > 0 ORDER BY video_count DESC, name/);
 });
 
+test("wires the validated local adult catalog into listings, search, categories, and watch pages", async () => {
+  const [repository, localCatalog, aliases, watch, adultListing] = await Promise.all([
+    source("lib/catalog/repository.ts"),
+    source("lib/pornhub-local-catalog.ts"),
+    source("lib/pornhub-category-aliases.json"),
+    source("app/watch/[slug]/page.tsx"),
+    source("app/porn-videos/page.tsx"),
+  ]);
+  assert.match(repository, /options\.catalog === "porn"/);
+  assert.match(repository, /listLocalPornhubVideos/);
+  assert.match(repository, /searchLocalPornhubVideos/);
+  assert.match(localCatalog, /data\/staging\/pornhub\/final\.jsonl/);
+  assert.match(localCatalog, /source: "pornhub"/);
+  assert.match(aliases, /"doggy-style"/);
+  assert.match(aliases, /"hentai-anime"/);
+  assert.match(watch, /"@type": "VideoObject"/);
+  assert.match(watch, /uploadDate: videoUploadDate\(video\)/);
+  assert.match(watch, /embedUrl: video\.embedUrl/);
+  assert.match(adultListing, /AdultCategoryStrip/);
+});
+
 test("keeps metadata and iframe props serializable without development warnings", async () => {
   const [layout, player] = await Promise.all([
     source("app/layout.tsx"),
@@ -138,8 +159,10 @@ test("keeps metadata and iframe props serializable without development warnings"
   ]);
   assert.match(layout, /authors: \[\{ name: SITE\.name, url: origin \}\]/);
   assert.doesNotMatch(layout, /authors:.*url: base/);
-  assert.doesNotMatch(player, /allowFullScreen|allowfullscreen/);
-  assert.match(player, /allow="autoplay; fullscreen; picture-in-picture"/);
+  assert.match(player, /"use client"/);
+  assert.match(player, /allowFullScreen/);
+  assert.match(player, /allow="autoplay; encrypted-media; fullscreen; picture-in-picture"/);
+  assert.match(player, /scrolling="no"/);
 });
 
 test("builds clean absolute filter URLs and renders filtered empty states", async () => {
@@ -246,14 +269,33 @@ test("protects Vercel compute without persisting transient D1 fallbacks", async 
   ]);
   assert.doesNotMatch(repository, /unstable_cache/);
   assert.match(repository, /type DatabaseResult<T> = \{ value: T; database: boolean \}/);
-  assert.ok((repository.match(/shouldCache: \((?:result|outcome)\) => (?:result|outcome)\.database/g) ?? []).length >= 8);
+  assert.ok((repository.match(/shouldCache: \((?:result|outcome)\) => (?:result|outcome)\.database/g) ?? []).length >= 6);
+  assert.match(repository, /withLocalCatalogCache/);
   assert.match(watchPage, /export const revalidate = 86_400/);
   assert.match(watchPage, /return \[\]/);
   assert.doesNotMatch(layout, /requestOrigin/);
   assert.doesNotMatch(d1, /cache: "no-store"/);
   assert.match(upstash, /cache: "default"/);
-  assert.match(upstash, /const CACHE_SCHEMA_VERSION = "v2"/);
+  assert.match(upstash, /const CACHE_SCHEMA_VERSION = "v3"/);
   assert.match(upstash, /const inFlight = new Map/);
+});
+
+test("keeps homepage adult rails recent, strictly categorized, and complete", async () => {
+  const [previewScript, previewReader, home, watchPage] = await Promise.all([
+    source("scripts/pornhub/build-home-preview.mjs"),
+    source("lib/pornhub-local-preview.ts"),
+    source("components/home/home-discovery.tsx"),
+    source("app/watch/[slug]/page.tsx"),
+  ]);
+  assert.match(previewScript, /year >= 2024 && year <= 2026/);
+  assert.match(previewScript, /hasStrictTaxonomyTerm/);
+  assert.doesNotMatch(previewScript, /\[record\.title, \.\.\.\(record\.tags/);
+  assert.match(previewReader, /pussyLicking: PornhubPreviewItem\[\]/);
+  assert.match(home, /preview\.sections\.doggy/);
+  assert.match(home, /preview\.sections\.blowjob/);
+  assert.match(watchPage, /getRelatedVideos\(video, 10\)/);
+  assert.match(home, /href="\/porn-category\/doggy-style\?order=latest"/);
+  assert.match(watchPage, /!isPornhub/);
 });
 
 test("generates page-specific SEO without indexing internal search results", async () => {
@@ -396,7 +438,7 @@ test("keeps ExoClick configuration valid and uses a fresh document lifecycle for
   assert.doesNotMatch(adSlot, /servedOverlayZoneRef|RETRY_AFTER_MS|mountZone\(true\)/);
   assert.doesNotMatch(adSlot, /data-ex_av/);
   assert.match(globalFormats, /const publicPage = !pathname\.startsWith\("\/admin"\)/);
-  assert.match(globalFormats, /const instantActive = publicPage && !isReels/);
+  assert.match(globalFormats, /const instantActive = monetizedRoute && !isReels/);
   assert.match(globalFormats, /const fullpageActive = device === "mobile" \? isWatch : monetizedRoute/);
   assert.match(globalFormats, /device === "desktop" && <AdSlot active=\{monetizedRoute\} key=\{`sticky-\$\{pathname\}`\} placement="desktop-sticky"/);
   assert.match(globalFormats, /!isReels && <AdSlot active=\{instantActive\} key=\{`instant-\$\{pathname\}`\} placement="catalog-instant"/);
@@ -405,7 +447,7 @@ test("keeps ExoClick configuration valid and uses a fresh document lifecycle for
   assert.match(globalFormats, /placement="watch-slider"/);
   assert.match(globalFormats, /device === "desktop" && <AdSlot active=\{isWatch\} key=\{`slider-\$\{pathname\}`\} placement="watch-slider"/);
   assert.match(globalFormats, /device === "mobile" && isCatalog && <MobilePopunder \/>/);
-  assert.match(globalFormats, /device === "desktop" && !isReels && <DesktopPopunder \/>/);
+  assert.match(globalFormats, /device === "desktop" && monetizedRoute && !isReels && <DesktopPopunder \/>/);
   assert.match(globalFormats, /active=\{fullpageActive\} key=\{`fullpage-\$\{pathname\}`\} placement="fullpage"/);
   assert.match(mobilePopunder, /NEXT_PUBLIC_EXOCLICK_MOBILE_POPUNDER_ZONE_ID/);
   assert.match(mobilePopunder, /a\.pemsrv\.com\/popunder1000\.js/);
@@ -420,6 +462,10 @@ test("keeps ExoClick configuration valid and uses a fresh document lifecycle for
   assert.match(desktopPopunder, /matchMedia\("\(min-width: 821px\)"\)/);
   assert.match(desktopPopunder, /actrexx-desktop-pop/);
   assert.match(desktopPopunder, /a\.pemsrv\.com\/popunder1000\.js/);
+  assert.match(desktopPopunder, /window\.ad_new_tab = true/);
+  assert.match(mobilePopunder, /window\.ad_new_tab = true/);
+  assert.match(adSlot, /zone\.dataset\.sub = String\(placementSubIds\[placement\]\)/);
+  assert.match(adSlot, /zone\.dataset\.keywords = keywords/);
   assert.match(revenueLink, /return <a/);
   assert.match(revenueLink, /actrexx-mobile-pop/);
   assert.match(revenueLink, /actrexx-desktop-pop/);
@@ -456,12 +502,12 @@ test("keeps ExoClick configuration valid and uses a fresh document lifecycle for
   assert.match(css, /\.ad-slot-overlay \.ad-zone-host \{ width:auto; max-width:none/);
   assert.match(css, /\.ad-slot-overlay\[data-placement="fullpage"\] \{ width:100vw; height:100vh; height:100dvh; position:fixed/);
   assert.match(css, /\.ad-slot-overlay\[data-placement="fullpage"\] \.ad-zone-host, \.ad-slot-overlay\[data-placement="fullpage"\] \.ad-zone-host > ins \{ width:100%; height:100%/);
-  assert.match(css, /\.ad-slot-overlay\[data-placement="fullpage"\] \.ad-zone-host > ins > \*, \.ad-slot-overlay\[data-placement="fullpage"\] iframe \{ max-width:none; max-height:none; pointer-events:auto; \}/);
+  assert.match(css, /\.ad-slot-overlay\[data-placement="fullpage"\] \.ad-zone-host > ins > \*, \.ad-slot-overlay\[data-placement="fullpage"\] iframe, \.ad-slot-overlay\[data-placement="fullpage"\] img \{ max-width:none; max-height:none; pointer-events:auto; \}/);
   assert.match(css, /\.ad-slot-infeed \{ min-height:250px; grid-column:1 \/ -1/);
   assert.doesNotMatch(adSlot, /\|\| "101"/);
   assert.match(productionCheck, /Advertising is enabled but configuration is incomplete/);
   assert.match(productionCheck, /optionalPlacements/);
-  assert.match(adCheck, /ADS_TXT is missing/);
+  assert.match(adCheck, /Ads\.txt:/);
   assert.match(adsTxtRoute, /status: 404/);
   assert.doesNotMatch(favicon, /M27 18v27h17|LUMA/i);
   assert.match(socialImage, /ACTREXX/);
@@ -472,9 +518,9 @@ test("keeps ExoClick configuration valid and uses a fresh document lifecycle for
   assert.ok(chrome.indexOf('placement="sidebar"') < chrome.indexOf("Popular actresses"));
 });
 
-test("keeps vertical reels isolated, bounded, and VAST-enabled", async () => {
+test("keeps vertical swipe videos isolated, bounded, and VAST-enabled", async () => {
   const [page, feed, vast, home, repository, envExample, sitemap] = await Promise.all([
-    source("app/reels/page.tsx"),
+    source("app/swipe-videos/page.tsx"),
     source("components/reels/reels-feed.tsx"),
     source("components/reels/vertical-vast-slide.tsx"),
     source("app/page.tsx"),
@@ -503,8 +549,9 @@ test("keeps vertical reels isolated, bounded, and VAST-enabled", async () => {
   assert.doesNotMatch(vast, /VERTICAL_AD_CAP_MS|sessionStorage/);
   assert.match(vast, /onUnavailable\(checkpoint\);/);
   assert.doesNotMatch(page, /<SiteHeader/);
-  assert.match(home, /beforeHeading=\{<PopularNow videos=\{popular\} \/>\}/);
+  assert.match(home, /<PopularNow videos=\{popular\} \/>/);
+  assert.match(home, /<HomeDiscovery latest=\{result\.items\} preview=\{preview!\} \/>/);
   assert.match(repository, /export async function getPopularVideos\(limit = 100\)/);
   assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_VERTICAL_VAST_TAG_URL=/);
-  assert.match(sitemap, /"\/reels"/);
+  assert.match(sitemap, /"\/swipe-videos"/);
 });

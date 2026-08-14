@@ -17,6 +17,7 @@ declare global {
     ad_capping_enabled?: boolean;
     ad_tcf_enabled?: boolean;
     ad_agego_cross_site_enabled?: boolean;
+    ad_sub?: number;
   }
 }
 
@@ -24,6 +25,7 @@ const adsEnabled = process.env.NEXT_PUBLIC_ADS_ENABLED === "true";
 const zoneId = process.env.NEXT_PUBLIC_EXOCLICK_DESKTOP_POPUNDER_ZONE_ID?.trim();
 const frequencyPeriod = Number(process.env.NEXT_PUBLIC_EXOCLICK_DESKTOP_POPUNDER_FREQUENCY_PERIOD || "10");
 const frequencyCount = Number(process.env.NEXT_PUBLIC_EXOCLICK_DESKTOP_POPUNDER_FREQUENCY_COUNT || "3");
+const triggerDelay = Number(process.env.NEXT_PUBLIC_EXOCLICK_DESKTOP_POPUNDER_TRIGGER_DELAY || "60");
 
 export function DesktopPopunder() {
   useEffect(() => {
@@ -43,15 +45,16 @@ export function DesktopPopunder() {
       window.ad_popup_fallback = false;
       window.ad_popup_force = false;
       window.ad_chrome_enabled = true;
-      window.ad_new_tab = false;
+      window.ad_new_tab = true;
       window.ad_frequency_period = Number.isFinite(frequencyPeriod) && frequencyPeriod > 0 ? frequencyPeriod : 10;
       window.ad_frequency_count = Number.isFinite(frequencyCount) && frequencyCount > 0 ? frequencyCount : 3;
       window.ad_trigger_method = 2;
       window.ad_trigger_class = "actrexx-desktop-pop";
-      window.ad_trigger_delay = 0;
+      window.ad_trigger_delay = Number.isFinite(triggerDelay) && triggerDelay >= 0 ? triggerDelay : 60;
       window.ad_capping_enabled = true;
       window.ad_tcf_enabled = true;
       window.ad_agego_cross_site_enabled = true;
+      window.ad_sub = 1100201;
 
       const script = document.createElement("script");
       script.id = "actrexx-desktop-popunder";

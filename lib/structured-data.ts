@@ -15,7 +15,7 @@ export function videoUploadDate(video: Video) {
 }
 
 function videoList(origin: string, items: Video[]) {
-  return items.slice(0, 24).map((video, index) => {
+  return items.slice(0, 25).map((video, index) => {
     const url = absoluteUrl(origin, `/watch/${video.slug}`);
     return {
       "@type": "ListItem",

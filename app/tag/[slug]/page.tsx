@@ -6,6 +6,7 @@ import { catalogMetadata, configuredSiteOrigin } from "@/lib/seo";
 import { notFound } from "next/navigation";
 import { catalogFilterPath, filterQueryOptions, hasCatalogFilters, parseCatalogFilters, type CatalogFilterParams } from "@/lib/catalog/filters";
 import { tagSeo } from "@/lib/seo-templates";
+import { ADULT_CATEGORY_MINIMUM_VIDEOS } from "@/lib/adult-taxonomy";
 import { EntityContext } from "@/components/entity-context";
 import { tagContext } from "@/lib/entity-context";
 import { serializeJsonLd } from "@/lib/site";
@@ -18,7 +19,7 @@ export async function generateMetadata({ params, searchParams }: { params: Promi
   const tag = (await getTaxonomy()).tags.find((item) => item.slug === slug);
   if (!tag) return {};
   const filters = parseCatalogFilters(query);
-  return catalogMetadata({ ...tagSeo(tag.name, tag.count), path: `/tag/${slug}`, page: query.page, index: tag.count >= 1 && !hasCatalogFilters(filters) });
+  return catalogMetadata({ ...tagSeo(tag.name, tag.count), path: `/tag/${slug}`, page: query.page, index: tag.count >= ADULT_CATEGORY_MINIMUM_VIDEOS && !hasCatalogFilters(filters) });
 }
 
 export default async function TagPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<CatalogFilterParams> }) {
@@ -27,7 +28,7 @@ export default async function TagPage({ params, searchParams }: { params: Promis
   if (!tag) notFound();
   const filters = parseCatalogFilters(query);
   const [result, origin] = await Promise.all([
-    listVideos({ tagSlug: slug, ...filterQueryOptions(filters), page: pageNumber(query.page), pageSize: 24 }),
+    listVideos({ catalog: "celebrity", tagSlug: slug, ...filterQueryOptions(filters), page: pageNumber(query.page), pageSize: 25 }),
     configuredSiteOrigin(),
   ]);
   const base = `/tag/${slug}`;

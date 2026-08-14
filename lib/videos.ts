@@ -19,6 +19,10 @@ export type Video = {
   publishedAt?: string;
   playerAspectRatio?: number;
   preview?: string;
+  source?: "videocelebs" | "pornhub";
+  sourceCategories?: string[];
+  collections?: string[];
+  views?: number;
 };
 
 export const videos: Video[] = [

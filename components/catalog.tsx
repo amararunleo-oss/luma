@@ -7,26 +7,33 @@ import { AdSlot } from "./ads/ad-slot";
 import { CatalogFilters } from "./catalog-filters";
 import type { CatalogFilterValues } from "@/lib/catalog/filters";
 import { Fragment } from "react";
+import { ADULT_CATEGORIES, adultCategoryMatchTerms } from "@/lib/adult-taxonomy";
 
-export const PAGE_SIZE = 24;
+export const PAGE_SIZE = 25;
 
 export function VideoCard({ video, priority = false }: { video: Video; priority?: boolean }) {
+  const adultCategory = video.source === "pornhub" ? ADULT_CATEGORIES.find((category) => {
+    const values = new Set([...(video.collections ?? []), ...(video.sourceCategories ?? []), ...video.tags].map(slug));
+    return adultCategoryMatchTerms(category).some((term) => values.has(slug(term)));
+  }) : undefined;
   return (
     <article className="video-card">
-      <Link className="video-thumb" href={`/watch/${video.slug}`} aria-label={`Watch ${video.title}`}>
+      <Link adTrigger className="video-thumb" href={`/watch/${video.slug}`} aria-label={`Watch ${video.title}`}>
         <Thumbnail src={video.thumbnail} alt={video.title} priority={priority} />
         <span className="play-button" aria-hidden="true"><Play size={18} fill="currentColor" strokeWidth={1.8} /></span>
         <span className="duration">{video.duration}</span>
       </Link>
-      {video.actresses.length > 0 && (
+      {adultCategory ? (
+        <div className="performers"><Link href={`/porn-category/${adultCategory.slug}`}>{adultCategory.shortName}</Link></div>
+      ) : video.actresses.length > 0 && (
         <div className="performers" title={video.actresses.join(", ")}>
           {video.actresses.map((actress, index) => (
             <span key={actress}>{index > 0 && ", "}<Link href={`/actress/${slug(actress)}`}>{actress}</Link></span>
           ))}
         </div>
       )}
-      <h2><Link href={`/watch/${video.slug}`} title={video.sceneTitle}>{video.sceneTitle}</Link></h2>
-      <div className="video-meta"><span>{video.year}</span><i /> <span>{video.rating}% rating</span></div>
+      <h2><Link adTrigger href={`/watch/${video.slug}`} title={video.sceneTitle}>{video.sceneTitle}</Link></h2>
+      <div className="video-meta">{video.source !== "pornhub" && <><span>{video.year}</span><i /></>}<span>{video.rating}% rating</span></div>
     </article>
   );
 }

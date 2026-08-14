@@ -1,23 +1,13 @@
 "use client";
 
-import { ChevronDown, Clapperboard, Film, Flame, Layers3, Menu, Sparkles, Star, Tags, Tv, UserRound, X } from "lucide-react";
-import Link from "@/components/navigation/revenue-link";
+import { ChevronDown, Menu, PlaySquare, Tags, UserRound, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
-import { SITE } from "@/lib/site";
+import Link from "@/components/navigation/revenue-link";
 import { AdSlot } from "@/components/ads/ad-slot";
-
-const sections = [
-  { label: "Latest", description: "New movie and TV scenes", href: "/", icon: Sparkles },
-  { label: "Popular", description: "Most watched videos", href: "/most-popular", icon: Flame },
-  { label: "Reels", description: "Swipe through popular scenes", href: "/reels", icon: Clapperboard },
-  { label: "Collections", description: "Curated ways to explore", href: "/collections", icon: Layers3 },
-  { label: "Top rated", description: "Highest-rated scenes", href: "/top-rated", icon: Star },
-  { label: "Actresses", description: "Browse performers A–Z", href: "/actress", icon: UserRound },
-  { label: "Movies", description: "Explore films A–Z", href: "/movie", icon: Film },
-  { label: "TV shows", description: "Explore series A–Z", href: "/tv-show", icon: Tv },
-] as const;
+import { CatalogNavigation } from "@/components/navigation/catalog-navigation";
+import { SITE } from "@/lib/site";
 
 type DrawerEntry = { name: string; slug: string };
 type DrawerTaxonomy = { actresses: DrawerEntry[]; tags: DrawerEntry[] };
@@ -100,20 +90,17 @@ export function BrowseDrawer() {
     <div className={`drawer-layer${open ? " open" : ""}`} aria-hidden={!open}>
       <button className="drawer-backdrop" type="button" aria-label="Close browse menu" tabIndex={open ? 0 : -1} onClick={() => setOpen(false)} />
       <aside id="browse-drawer" className="browse-drawer" role="dialog" aria-modal="true" aria-label={`Browse ${SITE.name}`}>
-        <header><div><Clapperboard size={18} aria-hidden="true" /><span>Explore {SITE.name}</span></div><button ref={closeButton} type="button" aria-label="Close browse menu" onClick={() => setOpen(false)}><X size={18} aria-hidden="true" /></button></header>
+        <header><div><PlaySquare size={18} aria-hidden="true" /><span>Explore {SITE.name}</span></div><button ref={closeButton} type="button" aria-label="Close browse menu" onClick={() => setOpen(false)}><X size={18} aria-hidden="true" /></button></header>
         <nav aria-label="Browse sections">
-          {sections.map((item) => {
-            const Icon = item.icon;
-            return <Link className={pathname === item.href ? "active" : ""} href={item.href} key={item.href} onClick={() => setOpen(false)}><span><Icon size={18} aria-hidden="true" /></span><div><strong>{item.label}</strong><small>{item.description}</small></div></Link>;
-          })}
+          <CatalogNavigation variant="drawer" onNavigate={() => setOpen(false)} />
           <div className="drawer-taxonomy">
             <details>
-              <summary><span><UserRound size={15} aria-hidden="true" />Popular actresses</span><ChevronDown size={15} aria-hidden="true" /></summary>
+              <summary><span><UserRound size={15} aria-hidden="true" />Popular celebrities</span><ChevronDown size={15} aria-hidden="true" /></summary>
               <div className="drawer-taxonomy-links">
-                {taxonomyLoading && <p className="drawer-taxonomy-status">Loading actresses…</p>}
+                {taxonomyLoading && <p className="drawer-taxonomy-status">Loading celebrities…</p>}
                 {taxonomy?.actresses.map((item) => <Link href={`/actress/${item.slug}`} key={item.slug} onClick={() => setOpen(false)}>{item.name}</Link>)}
-                {taxonomyFailed && <p className="drawer-taxonomy-status">Actresses are temporarily unavailable.</p>}
-                <Link className="drawer-view-all" href="/actress" onClick={() => setOpen(false)}>View all actresses</Link>
+                {taxonomyFailed && <p className="drawer-taxonomy-status">Celebrities are temporarily unavailable.</p>}
+                <Link className="drawer-view-all" href="/actress" onClick={() => setOpen(false)}>View all celebrities</Link>
               </div>
             </details>
             <details>
@@ -127,7 +114,7 @@ export function BrowseDrawer() {
           </div>
         </nav>
         <div className="drawer-ad"><AdSlot active={open} placement="drawer-compact" /></div>
-        <footer><Tags size={15} aria-hidden="true" /><p>Search by actress, movie, TV show or scene.</p></footer>
+        <footer><Tags size={15} aria-hidden="true" /><p>Celebrity entertainment and adult videos are organized as separate libraries.</p></footer>
       </aside>
     </div>
   );

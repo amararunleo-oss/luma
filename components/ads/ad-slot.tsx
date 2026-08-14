@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-export type Placement = "catalog-top" | "catalog-footer" | "watch-footer" | "sidebar" | "below-player" | "watch-outstream" | "drawer-compact" | "search-compact" | "mobile-infeed" | "desktop-sticky" | "catalog-instant" | "watch-slider" | "fullpage";
+export type Placement = "catalog-top" | "catalog-footer" | "home-break" | "watch-footer" | "sidebar" | "below-player" | "watch-outstream" | "drawer-compact" | "search-compact" | "mobile-infeed" | "desktop-sticky" | "catalog-instant" | "watch-slider" | "fullpage";
 type ZoneConfig = { zoneId?: string; className?: string; format: string; provider?: string };
 type Device = "mobile" | "desktop";
 
@@ -21,6 +21,11 @@ const desktopPlacements: Record<Placement, ZoneConfig> = {
   "catalog-footer": {
     zoneId: process.env.NEXT_PUBLIC_EXOCLICK_PLAYER_ZONE_ID,
     className: process.env.NEXT_PUBLIC_EXOCLICK_PLAYER_CLASS,
+    format: "leaderboard",
+  },
+  "home-break": {
+    zoneId: process.env.NEXT_PUBLIC_EXOCLICK_CATALOG_ZONE_ID,
+    className: process.env.NEXT_PUBLIC_EXOCLICK_CATALOG_CLASS,
     format: "leaderboard",
   },
   "watch-footer": {
@@ -88,6 +93,11 @@ const mobilePlacements: Partial<Record<Placement, ZoneConfig>> = {
     className: process.env.NEXT_PUBLIC_EXOCLICK_PLAYER_MOBILE_CLASS,
     format: "leaderboard",
   },
+  "home-break": {
+    zoneId: process.env.NEXT_PUBLIC_EXOCLICK_MOBILE_INFEED_ZONE_ID,
+    className: process.env.NEXT_PUBLIC_EXOCLICK_MOBILE_INFEED_CLASS,
+    format: "infeed",
+  },
   "watch-footer": {
     zoneId: process.env.NEXT_PUBLIC_EXOCLICK_CATALOG_MOBILE_ZONE_ID,
     className: process.env.NEXT_PUBLIC_EXOCLICK_CATALOG_MOBILE_CLASS,
@@ -138,6 +148,40 @@ const EMPTY_RETRY_DELAY_MS = 4_000;
 const MAX_EMPTY_RETRIES = 2;
 const PROVIDER_RETRY_MS = 1_500;
 const LAZY_ROOT_MARGIN_PX = 320;
+
+const placementSubIds: Record<Placement, number> = {
+  "catalog-top": 1100101,
+  "catalog-footer": 1100102,
+  "home-break": 1100114,
+  "watch-footer": 1100103,
+  sidebar: 1100104,
+  "below-player": 1100105,
+  "watch-outstream": 1100106,
+  "drawer-compact": 1100107,
+  "search-compact": 1100108,
+  "mobile-infeed": 1100109,
+  "desktop-sticky": 1100110,
+  "catalog-instant": 1100111,
+  "watch-slider": 1100112,
+  fullpage: 1100113,
+};
+
+const placementKeywords: Record<Placement, readonly string[]> = {
+  "catalog-top": ["adult video", "celebrity", "entertainment"],
+  "catalog-footer": ["adult video", "celebrity", "popular video"],
+  "home-break": ["adult video", "popular video", "mobile"],
+  "watch-footer": ["adult video", "related video", "entertainment"],
+  sidebar: ["celebrity", "movie", "television"],
+  "below-player": ["adult video", "video scene", "entertainment"],
+  "watch-outstream": ["adult video", "video scene", "entertainment"],
+  "drawer-compact": ["adult video", "celebrity"],
+  "search-compact": ["adult video", "search"],
+  "mobile-infeed": ["adult video", "popular video", "mobile"],
+  "desktop-sticky": ["adult video", "entertainment", "desktop"],
+  "catalog-instant": ["adult video", "entertainment"],
+  "watch-slider": ["adult video", "video scene", "popular video"],
+  fullpage: ["adult video", "entertainment"],
+};
 
 function validZone(config: { zoneId?: string; className?: string }) {
   return Boolean(config.zoneId && /^\d+$/.test(config.zoneId) && config.className && /^[a-z][a-z0-9_-]+$/i.test(config.className));
@@ -190,10 +234,21 @@ function loadProvider(provider: string, onReady: () => void, onError: () => void
   document.head.appendChild(script);
 }
 
-function createZone(className: string, zoneId: string) {
+function normalizedKeywords(placement: Placement, supplied: readonly string[]) {
+  return [...new Set([...supplied, ...placementKeywords[placement]])]
+    .map((value) => value.toLowerCase().replace(/[^a-z0-9 -]/g, " ").replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .slice(0, 12)
+    .join(",");
+}
+
+function createZone(className: string, zoneId: string, placement: Placement, device: Device, keywords: string) {
   const zone = document.createElement("ins");
   zone.className = className;
   zone.dataset.zoneid = zoneId;
+  zone.dataset.sub = String(placementSubIds[placement]);
+  zone.dataset.sub2 = device === "mobile" ? "1100202" : "1100201";
+  if (keywords) zone.dataset.keywords = keywords;
   if (blockedAdTypes) zone.dataset.blockAdTypes = blockedAdTypes;
   return zone;
 }
@@ -217,7 +272,7 @@ function hasRenderedCreative(host: HTMLElement, zone: HTMLElement, format: strin
   });
 }
 
-export function AdSlot({ placement, active = true }: { placement: Placement; active?: boolean }) {
+export function AdSlot({ placement, active = true, keywords = [] }: { placement: Placement; active?: boolean; keywords?: readonly string[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const zoneHostRef = useRef<HTMLDivElement>(null);
   const [device, setDevice] = useState<Device | null>(null);
@@ -231,6 +286,7 @@ export function AdSlot({ placement, active = true }: { placement: Placement; act
   const format = config?.format || desktopPlacements[placement].format;
   const provider = config?.provider || "https://a.magsrv.com/ad-provider.js";
   const readyToServe = format === "overlay" || visible;
+  const keywordValue = normalizedKeywords(placement, keywords);
 
   useEffect(() => {
     const media = window.matchMedia("(max-width: 820px)");
@@ -286,7 +342,7 @@ export function AdSlot({ placement, active = true }: { placement: Placement; act
 
     let zone = host.querySelector<HTMLElement>(`ins[data-zoneid="${zoneId}"]`);
     if (!zone) {
-      zone = createZone(className!, zoneId!);
+      zone = createZone(className!, zoneId!, placement, device, keywordValue);
       host.replaceChildren(zone);
     }
 
@@ -334,7 +390,7 @@ export function AdSlot({ placement, active = true }: { placement: Placement; act
       needsEmptyRetry = false;
       emptyRetryInFlight = true;
       emptyRetryCount += 1;
-      zone = createZone(className!, zoneId!);
+      zone = createZone(className!, zoneId!, placement, device, keywordValue);
       host.replaceChildren(zone);
       setStatus("loading");
       scheduleServe();
@@ -384,7 +440,7 @@ export function AdSlot({ placement, active = true }: { placement: Placement; act
       if (format === "overlay") document.removeEventListener(creativeEvent, creativeDisplayed);
       observer.disconnect();
     };
-  }, [active, className, device, format, provider, readyToServe, zoneId]);
+  }, [active, className, device, format, keywordValue, placement, provider, readyToServe, zoneId]);
 
   if (!adsEnabled || !device || failed || !validZone({ zoneId, className })) return null;
 

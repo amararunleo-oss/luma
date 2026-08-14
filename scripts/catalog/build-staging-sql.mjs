@@ -43,6 +43,7 @@ async function readLatestRecords() {
 
 const { records: sourceRecords, incompleteLines } = await readLatestRecords();
 const records = sourceRecords
+  .filter((record) => !/chaturbate\s+review|best\s+free\s+cam\s+site/i.test(`${record.originalTitle ?? ""} ${record.title ?? ""} ${record.displayTitle ?? ""}`))
   .filter((record) => record.detailStatus === "ok" && record.catalogStatus !== "excluded_non_scene" && ["downloaded", "existing"].includes(record.thumbnailStatus))
   .sort((a, b) => Number(a.listings?.latest?.position ?? Number.MAX_SAFE_INTEGER) - Number(b.listings?.latest?.position ?? Number.MAX_SAFE_INTEGER));
 

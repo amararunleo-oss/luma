@@ -1,9 +1,10 @@
 import Link from "@/components/navigation/revenue-link";
-import { Film, Tv, UserRound } from "lucide-react";
+import { Film, Tags, Tv, UserRound } from "lucide-react";
 import type { SearchSuggestions } from "@/lib/catalog/repository";
 
 export function SearchDiscovery({ results }: { results: SearchSuggestions }) {
   const groups = [
+    { key: "categories", label: "Categories", icon: Tags, items: results.categories },
     { key: "actresses", label: "Actresses", icon: UserRound, items: results.actresses },
     { key: "movies", label: "Movies", icon: Film, items: results.movies },
     { key: "tvShows", label: "TV Shows", icon: Tv, items: results.tvShows },

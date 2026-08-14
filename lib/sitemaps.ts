@@ -1,22 +1,25 @@
-import { getCatalogSitemapChunk, getCatalogSitemapCounts, type CatalogSitemapEntry, type CatalogSitemapSection } from "@/lib/catalog/repository";
+import { getAdultCategoryCounts, getCatalogSitemapChunk, getCatalogSitemapCounts, listVideos, type CatalogSitemapEntry, type CatalogSitemapSection } from "@/lib/catalog/repository";
 import { COLLECTIONS } from "@/lib/collections";
+import { ADULT_CATEGORIES, ADULT_CATEGORY_MINIMUM_VIDEOS } from "@/lib/adult-taxonomy";
 
 export const SITEMAP_CHUNK_SIZE = 10_000;
 // Leave headroom below serverless response-size ceilings when metadata is long.
 export const VIDEO_SITEMAP_CHUNK_SIZE = 4_000;
 export const STATIC_SITEMAP_PATHS = [
   "",
+  "/latest",
   "/actress",
   "/movie",
   "/tv-show",
   "/most-popular",
-  "/reels",
+  "/swipe-videos",
   "/collections",
   ...COLLECTIONS.map((collection) => `/collections/${collection.slug}`),
   "/top-rated",
   "/about",
   "/privacy",
   "/terms",
+  "/rights",
   "/contact",
   "/dmca",
   "/2257",
@@ -64,7 +67,21 @@ export function parseSitemapId(value: string): SitemapDescriptor | null {
 }
 
 export async function getSitemapEntries(descriptor: SitemapDescriptor): Promise<CatalogSitemapEntry[]> {
-  if (descriptor.section === "static") return STATIC_SITEMAP_PATHS.map((path) => ({ path }));
+  if (descriptor.section === "static") {
+    const catalog = await listVideos({ catalog: "porn", page: 1, pageSize: 1 });
+    if (catalog.total < ADULT_CATEGORY_MINIMUM_VIDEOS) return STATIC_SITEMAP_PATHS.map((path) => ({ path }));
+    const counts = await getAdultCategoryCounts();
+    const categoryCounts = ADULT_CATEGORIES.map((category) => ({ category, total: counts[category.slug] ?? 0 }));
+    return [
+      ...STATIC_SITEMAP_PATHS,
+      "/porn-videos",
+      "/porn-videos/latest",
+      "/porn-videos/popular",
+      "/porn-videos/top-rated",
+      "/porn-categories",
+      ...categoryCounts.filter((item) => item.total >= ADULT_CATEGORY_MINIMUM_VIDEOS).map((item) => `/porn-category/${item.category.slug}`),
+    ].map((path) => ({ path }));
+  }
   if (descriptor.section === "video-media") return [];
   return getCatalogSitemapChunk(descriptor.section, descriptor.offset, SITEMAP_CHUNK_SIZE);
 }

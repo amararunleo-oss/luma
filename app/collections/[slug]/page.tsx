@@ -21,7 +21,7 @@ export async function generateMetadata({ params, searchParams }: Props) {
   const collection = collectionBySlug(slug);
   if (!collection) return {};
   const page = pageNumber(query.page);
-  const result = await listVideos({ ...collection.query, page, pageSize: 24 });
+  const result = await listVideos({ ...collection.query, page, pageSize: 25 });
   const validPage = page <= Math.max(1, Math.ceil(result.total / result.pageSize));
   return catalogMetadata({
     title: collection.title,
@@ -38,7 +38,7 @@ export default async function CollectionPage({ params, searchParams }: Props) {
   const collection = collectionBySlug(slug);
   if (!collection) notFound();
   const page = pageNumber(query.page);
-  const result = await listVideos({ ...collection.query, page, pageSize: 24 });
+  const result = await listVideos({ ...collection.query, page, pageSize: 25 });
   const pages = Math.max(1, Math.ceil(result.total / result.pageSize));
   if (page > pages) notFound();
   const origin = configuredSiteOrigin();

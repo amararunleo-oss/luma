@@ -211,14 +211,14 @@ export function ReelsFeed({ videos, vastTag }: { videos: ReelVideo[]; vastTag?: 
   const progress = `${Math.max(1, currentVideoPosition / videos.length * 100)}%`;
 
   if (!videos.length) {
-    return <div className="reels-empty"><Clapperboard size={24} /><h1>Reels are temporarily unavailable</h1><Link href="/most-popular">Browse popular scenes</Link></div>;
+    return <div className="reels-empty"><Clapperboard size={24} /><h1>Swipe videos are temporarily unavailable</h1><Link href="/most-popular">Browse popular scenes</Link></div>;
   }
 
   return (
     <div className="reels-stage">
       <div className="reels-progress" aria-hidden="true" style={{ "--reels-progress": progress } as React.CSSProperties}><span /></div>
       <Link className="reels-popular-link" href="/most-popular"><Clapperboard size={13} aria-hidden="true" />Popular videos</Link>
-      <div className={`reels-feed${adActive ? " reels-feed-locked" : ""}`} ref={feedRef} role="region" aria-label="Popular video reels">
+      <div className={`reels-feed${adActive ? " reels-feed-locked" : ""}`} ref={feedRef} role="region" aria-label="Popular swipe videos">
         {items.map((item, index) => {
           const skipped = skippedAds.has(index);
           return (

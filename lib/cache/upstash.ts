@@ -16,11 +16,11 @@ type CacheOptions<T> = {
   shouldCache?: (value: T) => boolean;
 };
 
-const MAX_L1_ENTRIES = 500;
+const MAX_L1_ENTRIES = 750;
 const MAX_REMOTE_VALUE_BYTES = 256 * 1024;
 const COMPRESSION_THRESHOLD_BYTES = 2 * 1024;
-const L1_TTL_SECONDS = 60;
-const CACHE_SCHEMA_VERSION = "v2";
+const L1_TTL_SECONDS = 10 * 60;
+const CACHE_SCHEMA_VERSION = "v3";
 const l1 = new Map<string, CacheEntry>();
 const inFlight = new Map<string, Promise<unknown>>();
 
@@ -124,7 +124,6 @@ export function catalogCacheKey(scope: string, input: unknown) {
 }
 
 export async function withCatalogCache<T>(key: string, ttlSeconds: number, loader: () => Promise<T>, options: CacheOptions<T> = {}): Promise<T> {
-  if (!client()) return loader();
   const fullKey = namespaced(key);
   const pending = inFlight.get(fullKey) as Promise<T> | undefined;
   if (pending) return pending;
@@ -141,6 +140,30 @@ export async function withCatalogCache<T>(key: string, ttlSeconds: number, loade
   inFlight.set(fullKey, task);
   try {
     return await task;
+  } finally {
+    inFlight.delete(fullKey);
+  }
+}
+
+/**
+ * Use for high-cardinality inputs such as free-text search. It protects D1
+ * within a warm runtime without spending two Redis commands for every unique
+ * visitor query.
+ */
+export async function withLocalCatalogCache<T>(key: string, ttlSeconds: number, loader: () => Promise<T>): Promise<T> {
+  const fullKey = namespaced(key);
+  const local = l1.get(fullKey);
+  if (local && local.expiresAt > Date.now()) return local.value as T;
+  if (local) l1.delete(fullKey);
+
+  const pending = inFlight.get(fullKey) as Promise<T> | undefined;
+  if (pending) return pending;
+  const task = loader();
+  inFlight.set(fullKey, task);
+  try {
+    const value = await task;
+    remember(fullKey, value, ttlSeconds);
+    return value;
   } finally {
     inFlight.delete(fullKey);
   }

@@ -33,7 +33,13 @@
     "catalog:sync:local": "npm run catalog:db:build && wrangler d1 execute site-creator-d1 --local --persist-to .wrangler/state --file data/staging/videocelebs/local-sync.sql",
     "seo:indexnow": "node scripts/search/submit-indexnow.mjs",
     "seo:audit": "node scripts/search/audit-catalog-seo.mjs",
-    "ads:check": "node scripts/ads/check-exoclick.mjs"
+    "ads:check": "node scripts/ads/check-exoclick.mjs",
+    "pornhub:select": "node scripts/pornhub/select-catalog.mjs",
+    "pornhub:validate": "node scripts/pornhub/validate-catalog.mjs",
+    "pornhub:merge": "node scripts/pornhub/merge-validated.mjs",
+    "pornhub:preview": "node scripts/pornhub/build-home-preview.mjs",
+    "pornhub:audit-categories": "node scripts/pornhub/audit-categories.mjs",
+    "pornhub:benchmark": "node scripts/pornhub/select-catalog.mjs --max-rows 250000 --no-checkpoint --no-resume --benchmark --out data/staging/pornhub-benchmark"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1106.0",

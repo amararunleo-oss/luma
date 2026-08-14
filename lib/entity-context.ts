@@ -135,6 +135,12 @@ export function yearContext(year: string, items: Video[]): EntityContext {
 }
 
 export function watchDescription(video: Video) {
+  if (video.source === "pornhub") {
+    const categories = (video.collections?.length ? video.collections : video.tags).slice(0, 5).map((value) => value.replace(/[-_]+/g, " "));
+    const classification = categories.length ? ` It is organized under ${readable(categories, "adult video")} categories.` : "";
+    const published = video.year >= 1900 ? ` Published in ${video.year}.` : "";
+    return `${video.description}${published}${classification} The video is embedded from the original publisher.`;
+  }
   const names = readable(video.actresses, "the credited performers");
   const tags = video.tags.slice(0, 5);
   const year = video.year >= 1900 ? ` (${video.year})` : "";

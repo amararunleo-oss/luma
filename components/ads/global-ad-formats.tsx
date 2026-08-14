@@ -8,17 +8,17 @@ import { DesktopPopunder } from "./desktop-popunder";
 
 type Device = "mobile" | "desktop";
 
-const catalogRoute = /^\/(?:latest|most-popular|top-rated|actress|movie|tv-show|tag|year)(?:\/|$)/;
+const catalogRoute = /^\/(?:latest|most-popular|top-rated|actress|movie|tv-show|tag|year|porn-videos|porn-category|porn-categories|collections|search)(?:\/|$)/;
 
 export function GlobalAdFormats() {
   const pathname = usePathname();
   const [device, setDevice] = useState<Device | null>(null);
   const isWatch = pathname.startsWith("/watch/");
-  const isReels = pathname === "/reels";
+  const isReels = pathname === "/swipe-videos" || pathname === "/reels";
   const isCatalog = pathname === "/" || catalogRoute.test(pathname);
-  const monetizedRoute = isCatalog || isWatch;
   const publicPage = !pathname.startsWith("/admin");
-  const instantActive = publicPage && !isReels;
+  const monetizedRoute = publicPage && (isCatalog || isWatch);
+  const instantActive = monetizedRoute && !isReels;
   const fullpageActive = device === "mobile" ? isWatch : monetizedRoute;
 
   useEffect(() => {
@@ -45,7 +45,7 @@ export function GlobalAdFormats() {
       {!isReels && <AdSlot active={instantActive} key={`instant-${pathname}`} placement="catalog-instant" />}
       {device === "desktop" && <AdSlot active={isWatch} key={`slider-${pathname}`} placement="watch-slider" />}
       {device === "mobile" && isCatalog && <MobilePopunder />}
-      {device === "desktop" && !isReels && <DesktopPopunder />}
+      {device === "desktop" && monetizedRoute && !isReels && <DesktopPopunder />}
       <AdSlot active={fullpageActive} key={`fullpage-${pathname}`} placement="fullpage" />
     </>
   );

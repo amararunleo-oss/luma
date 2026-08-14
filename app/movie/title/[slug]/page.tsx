@@ -22,7 +22,7 @@ export async function generateMetadata({ params, searchParams }: { params: Promi
 export default async function MovieTitlePage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<CatalogFilterParams> }) {
   const [{ slug }, query] = await Promise.all([params, searchParams]);
   const filters = { ...parseCatalogFilters(query), type: undefined };
-  const [work, result, origin] = await Promise.all([getWorkBySlug("Movie", slug), listVideos({ ...filterQueryOptions(filters), type: "Movie", workSlug: slug, page: pageNumber(query.page), pageSize: 24 }), configuredSiteOrigin()]);
+  const [work, result, origin] = await Promise.all([getWorkBySlug("Movie", slug), listVideos({ catalog: "celebrity", ...filterQueryOptions(filters), type: "Movie", workSlug: slug, page: pageNumber(query.page), pageSize: 25 }), configuredSiteOrigin()]);
   if (!work) notFound();
   const base = `/movie/title/${slug}`;
   const seo = workSeo("movie", work.name, work.count);

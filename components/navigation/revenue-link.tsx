@@ -13,7 +13,7 @@ type RevenueLinkProps = Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "href"> & 
  * A full document navigation gives every destination a fresh provider lifecycle,
  * while still allowing click-triggered formats to observe the original click.
  */
-export default function RevenueLink({ href, className, adTrigger = true, children, ...props }: RevenueLinkProps) {
+export default function RevenueLink({ href, className, adTrigger = false, children, ...props }: RevenueLinkProps) {
   const classes = [className, adTrigger ? "actrexx-mobile-pop actrexx-desktop-pop" : ""].filter(Boolean).join(" ");
   return <a {...props} className={classes || undefined} href={href}>{children}</a>;
 }

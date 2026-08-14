@@ -110,9 +110,6 @@ if (process.env.NEXT_PUBLIC_ADS_ENABLED === "true") {
     }
   }
 
-  if (!process.env.ADS_TXT?.trim()) {
-    console.warn("ADS_TXT is not configured; /ads.txt will return 404 until authorized seller records are supplied.");
-  }
 }
 
 console.log("Vercel production environment is configured.");

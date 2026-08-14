@@ -44,7 +44,10 @@ export async function generateMetadata(): Promise<Metadata> {
       ...(bingVerification ? { other: { "msvalidate.01": bingVerification } } : {}),
     },
     icons: {
-      icon: [{ url: "/favicon.ico", sizes: "any" }, { url: "/favicon.svg", type: "image/svg+xml" }],
+      icon: [
+        { url: "/favicon.ico", sizes: "32x32", type: "image/x-icon" },
+        { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+      ],
       shortcut: "/favicon.ico",
       apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
     },
@@ -58,6 +61,7 @@ export async function generateMetadata(): Promise<Metadata> {
       title: SITE.title,
       description: SITE.description,
       type: "website",
+      locale: "en_US",
       siteName: SITE.name,
       url: origin,
       images: [{ url: absoluteUrl(origin, "/og.png"), width: 1200, height: 630, alt: `${SITE.name} celebrity movie and television scenes` }],

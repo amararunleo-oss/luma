@@ -27,7 +27,7 @@ export default async function ActressPage({ params, searchParams }: { params: Pr
   if (!actress) notFound();
   const filters = parseCatalogFilters(query);
   const [result, origin] = await Promise.all([
-    listVideos({ actressSlug: slug, ...filterQueryOptions(filters), page: pageNumber(query.page), pageSize: 24 }),
+    listVideos({ catalog: "celebrity", actressSlug: slug, ...filterQueryOptions(filters), page: pageNumber(query.page), pageSize: 25 }),
     configuredSiteOrigin(),
   ]);
   const base = `/actress/${slug}`;

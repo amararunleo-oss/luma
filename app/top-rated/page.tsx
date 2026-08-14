@@ -15,6 +15,6 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
 export default async function TopRated({ searchParams }: { searchParams: Promise<CatalogFilterParams> }) {
   const query = await searchParams;
   const filters = parseCatalogFilters(query);
-  const result = await listVideos({ sort: "top-rated", ...filterQueryOptions(filters), page: pageNumber(query.page), pageSize: 24 });
+  const result = await listVideos({ catalog: "celebrity", sort: "top-rated", ...filterQueryOptions(filters), page: pageNumber(query.page), pageSize: 25 });
   return <><SiteHeader /><CatalogPage eyebrow="Top picks" title="Top Rated Videos" description="Highly rated movie and television scenes." items={result.items} total={result.total} page={result.page} pageSize={result.pageSize} prePaginated basePath={catalogFilterPath("/top-rated", filters)} filters={{ basePath: "/top-rated", values: filters }} /><SiteFooter /></>;
 }

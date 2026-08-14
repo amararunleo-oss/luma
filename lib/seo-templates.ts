@@ -1,5 +1,6 @@
 import { SITE } from "@/lib/site";
 import type { Video } from "@/lib/videos";
+import { adultCategoryBySlugOrName } from "@/lib/adult-taxonomy";
 
 export type SeoTemplate = {
   title: string;
@@ -19,11 +20,18 @@ function sceneIntent(tags: string[]) {
   return "Intimate Scene";
 }
 
+function compactTitle(value: string, limit = 64) {
+  if (value.length <= limit) return value;
+  const suffix = ` | ${SITE.name}`;
+  const body = value.endsWith(suffix) ? value.slice(0, -suffix.length) : value;
+  return `${body.slice(0, Math.max(20, limit - suffix.length - 1)).trimEnd()}…${suffix}`;
+}
+
 export function homeSeo(): SeoTemplate {
   return {
-    title: `Celebrity Nude & Sex Scenes from Movies and TV | ${SITE.name}`,
-    description: "Watch celebrity nude scenes, actress sex scenes and intimate movie and TV moments. Browse by actress, title, year and descriptive tag.",
-    keywords: ["celebrity nude scenes", "actress sex scenes", "movie sex scenes", "TV nude scenes", "celebrity adult videos"],
+    title: `Celebrity Scenes & Popular Adult Videos | ${SITE.name}`,
+    description: "Explore popular celebrity movie and TV scenes alongside curated adult video categories, recent releases and highly rated videos.",
+    keywords: ["celebrity nude scenes", "actress sex scenes", "popular adult videos", "movie sex scenes", "romantic adult videos"],
   };
 }
 
@@ -65,6 +73,14 @@ export function workSeo(type: "movie" | "tv", name: string, count: number): SeoT
 }
 
 export function tagSeo(name: string, count: number): SeoTemplate {
+  const adultCategory = adultCategoryBySlugOrName(name);
+  if (adultCategory) {
+    return {
+      title: `${adultCategory.name} - Popular Adult Videos | ${SITE.name}`,
+      description: `${adultCategory.description} Explore ${count.toLocaleString("en-US")} matching adult videos with clear titles, durations and related categories.`,
+      keywords: [adultCategory.name.toLowerCase(), ...adultCategory.aliases.slice(0, 4).map((alias) => `${alias} videos`)],
+    };
+  }
   return {
     title: `Celebrity ${name} Scenes & Videos | ${SITE.name}`,
     description: `Browse ${count.toLocaleString("en-US")} celebrity ${name.toLowerCase()} scenes from movies and television, organized by actress, title and year.`,
@@ -81,13 +97,22 @@ export function yearSeo(year: string): SeoTemplate {
 }
 
 export function watchSeo(video: Video): SeoTemplate {
+  if (video.source === "pornhub") {
+    const year = video.year >= 1900 ? ` (${video.year})` : "";
+    const categories = [...(video.collections ?? []), ...video.tags].slice(0, 5);
+    return {
+      title: compactTitle(`${video.sceneTitle}${year} - Adult Video | ${SITE.name}`),
+      description: `${video.description} Watch the embedded adult video and explore related ${categories.slice(0, 3).join(", ")} categories.`,
+      keywords: [video.sceneTitle, ...categories.map((tag) => `${tag} videos`)].slice(0, 10),
+    };
+  }
   const names = performers(video.actresses);
   const intent = sceneIntent(video.tags);
   const work = video.workTitle || video.sceneTitle;
   const year = video.year >= 1900 ? ` (${video.year})` : "";
   const tagText = video.tags.slice(0, 4).join(", ");
   return {
-    title: `${names} ${intent} in ${work}${year} | ${SITE.name}`,
+    title: compactTitle(`${names} ${intent} in ${work}${year} | ${SITE.name}`),
     description: `Watch ${names} in ${work}${year}, a ${video.type.toLowerCase()} ${intent.toLowerCase()}${tagText ? ` tagged ${tagText}` : ""}. View scene details and related videos.`,
     keywords: [
       ...video.actresses.slice(0, 2).flatMap((name) => [`${name} nude scene`, `${name} sex scene`, `${name} ${work}`]),

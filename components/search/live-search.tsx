@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "@/components/navigation/revenue-link";
 import { usePathname } from "next/navigation";
-import { AlertCircle, Clock3, Film, Flame, LoaderCircle, Play, Search, Trash2, Tv, UserRound, X } from "lucide-react";
+import { AlertCircle, Clock3, Film, Flame, LoaderCircle, Play, Search, Tags, Trash2, Tv, UserRound, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SearchSuggestion, SearchSuggestions } from "@/lib/catalog/repository";
 import { AdSlot } from "@/components/ads/ad-slot";
@@ -13,6 +13,7 @@ const groupDetails = {
   actresses: { label: "Actresses", icon: UserRound },
   movies: { label: "Movies", icon: Film },
   tvShows: { label: "TV Shows", icon: Tv },
+  categories: { label: "Categories", icon: Tags },
 } as const;
 
 const SEARCH_HISTORY_KEY = "actrexx:search-history";
@@ -23,6 +24,10 @@ const QUICK_SEARCHES = [
   { label: "Popular videos", href: "/most-popular" },
   { label: "Top rated", href: "/top-rated" },
   { label: "Movie scenes", href: "/movie" },
+  { label: "Romantic videos", href: "/porn-category/romantic" },
+  { label: "Doggy style", href: "/porn-category/doggy-style" },
+  { label: "Hentai & animation", href: "/porn-category/hentai" },
+  { label: "Popular adult videos", href: "/porn-videos/popular" },
 ] as const;
 
 function initialSearchHistory() {
@@ -51,7 +56,7 @@ export function LiveSearch() {
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [history, setHistory] = useState<string[]>(initialSearchHistory);
 
-  const groups = useMemo(() => results ? (["videos", "actresses", "movies", "tvShows"] as const)
+  const groups = useMemo(() => results ? (["categories", "videos", "actresses", "movies", "tvShows"] as const)
     .map((key) => ({ key, items: results[key] }))
     .filter((group) => group.items.length > 0) : [], [results]);
   const flatResults = useMemo(() => groups.flatMap((group) => group.items), [groups]);
@@ -203,7 +208,7 @@ export function LiveSearch() {
         }}
       ><Search size={18} aria-hidden="true" /></button>
       <form id="header-search-form" className="header-search" action="/search" role="search" onSubmit={() => saveSearch(query)}>
-        <label className="sr-only" htmlFor="site-search">Search videos, actresses, movies and TV shows</label>
+        <label className="sr-only" htmlFor="site-search">Search videos, celebrities, movies, TV shows and categories</label>
         <Search size={16} aria-hidden="true" />
         <input
           ref={input}
@@ -211,7 +216,7 @@ export function LiveSearch() {
           name="q"
           type="search"
           value={query}
-          placeholder="Search scenes, actresses, movies"
+          placeholder="Search videos, celebrities, categories"
           autoComplete="off"
           autoCapitalize="off"
           spellCheck={false}
@@ -265,7 +270,7 @@ export function LiveSearch() {
             );
           })}
           {!loading && requestError && <div className="search-empty search-failed"><AlertCircle size={18} aria-hidden="true" /><strong>Search is temporarily unavailable</strong><span>Wait a moment and try again.</span></div>}
-          {!loading && !requestError && !hasResults && <div className="search-empty"><strong>No matches found</strong><span>Try a different actress, movie or TV show.</span></div>}
+          {!loading && !requestError && !hasResults && <div className="search-empty"><strong>No matches found</strong><span>Try a celebrity, title or adult category.</span></div>}
           {hasResults && <div className="search-ad" role="presentation"><AdSlot active={open} placement="search-compact" /></div>}
           <Link className="search-view-all" href={`/search?q=${encodeURIComponent(query.trim())}`} onClick={() => { saveSearch(query); setOpen(false); }}>View all results</Link>
           </>}
@@ -277,7 +282,7 @@ export function LiveSearch() {
 
 function SearchResult({ item, active, close }: { item: SearchSuggestion; active: boolean; close: () => void }) {
   return (
-    <Link id={item.id} className={`search-result${active ? " active" : ""}`} role="option" aria-selected={active} href={item.href} onClick={close}>
+    <Link adTrigger={item.href.startsWith("/watch/")} id={item.id} className={`search-result${active ? " active" : ""}`} role="option" aria-selected={active} href={item.href} onClick={close}>
       {item.image
         ? <Image src={item.image} alt="" width={76} height={43} sizes="76px" unoptimized />
         : <span className="search-result-icon" aria-hidden="true">{item.label.slice(0, 1).toUpperCase()}</span>}
