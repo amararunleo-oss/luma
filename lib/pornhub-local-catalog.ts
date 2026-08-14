@@ -97,10 +97,22 @@ let recordsBySlugPromise: Promise<Map<string, Video>> | undefined;
 const filteredCatalogCache = new Map<string, Video[]>();
 
 export function getLocalPornhubVideos() {
-  recordsPromise ??= readFile(path.join(process.cwd(), "data/staging/pornhub/final.jsonl"), "utf8")
-    .catch(() => readFile(path.join(process.cwd(), "data/catalog/pornhub-featured.jsonl"), "utf8"))
-    .then((contents) => contents.split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line) as SourceRecord).filter(safeSourceRecord).map(toVideo))
-    .catch(() => []);
+  recordsPromise ??= Promise.all([
+    readFile(path.join(process.cwd(), "data/staging/pornhub/final.jsonl"), "utf8")
+      .catch(() => readFile(path.join(process.cwd(), "data/catalog/pornhub-featured.jsonl"), "utf8"))
+      .catch(() => ""),
+    readFile(path.join(process.cwd(), "data/catalog/pornhub-manual.jsonl"), "utf8").catch(() => ""),
+    readFile(path.join(process.cwd(), "data/staging/pornhub/manual.jsonl"), "utf8").catch(() => ""),
+  ]).then((sources) => {
+    const unique = new Map<string, SourceRecord>();
+    for (const contents of sources) {
+      for (const line of contents.split(/\r?\n/).filter(Boolean)) {
+        const record = JSON.parse(line) as SourceRecord;
+        unique.set(String(record.sourceNumericId), record);
+      }
+    }
+    return [...unique.values()].filter(safeSourceRecord).map(toVideo);
+  }).catch(() => []);
   return recordsPromise;
 }
 

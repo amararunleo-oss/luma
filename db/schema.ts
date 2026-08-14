@@ -151,3 +151,18 @@ export const monitorRuns = sqliteTable("monitor_runs", {
   startedAt: text("started_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   completedAt: text("completed_at"),
 }, (table) => [index("idx_monitor_runs_started").on(table.startedAt)]);
+
+// Lightweight registry for individually curated Pornhub additions. Runtime pages
+// read the deploy-time JSON catalog, while this table provides a durable remote
+// audit/backup without rewriting the large primary catalog.
+export const pornhubManualVideos = sqliteTable("pornhub_manual_videos", {
+  sourceId: text("source_id").primaryKey(),
+  slug: text("slug").notNull(),
+  title: text("title").notNull(),
+  payloadJson: text("payload_json").notNull(),
+  publishedAt: text("published_at").notNull(),
+  collectionsJson: text("collections_json").notNull(),
+  status: text("status", { enum: ["active", "inactive"] }).notNull().default("active"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("idx_pornhub_manual_slug_unique").on(table.slug)]);

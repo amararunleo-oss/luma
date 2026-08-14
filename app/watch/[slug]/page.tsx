@@ -134,7 +134,7 @@ export default async function WatchPage({ params }: { params: Promise<{ slug: st
           </header>
           <div className="watch-stage">
             <div className="watch-media">
-              <PlayerGate embedUrl={video.embedUrl} title={video.sceneTitle} aspectRatio={video.playerAspectRatio} />
+              <PlayerGate key={`${video.slug}:${video.embedUrl}`} embedUrl={video.embedUrl} title={video.sceneTitle} aspectRatio={video.playerAspectRatio} />
               <section className="video-description" aria-labelledby="scene-description-title">
                 <h2 id="scene-description-title">{isPornhub ? "About this video" : "About this scene"}</h2>
                 <p>{enrichedDescription}</p>
