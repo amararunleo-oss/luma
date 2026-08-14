@@ -12,12 +12,9 @@ export function PlayerGate({ embedUrl, title }: { embedUrl: string; title: strin
   const loaded = useRef(false);
 
   useEffect(() => {
-    loaded.current = false;
-    setAttempt(0);
-    setMounted(false);
     const mount = window.requestAnimationFrame(() => setMounted(true));
     return () => window.cancelAnimationFrame(mount);
-  }, [embedUrl]);
+  }, []);
 
   useEffect(() => {
     if (!mounted) return;

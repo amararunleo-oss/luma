@@ -2,6 +2,8 @@ import "server-only";
 
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { gunzipSync } from "node:zlib";
+import { Redis } from "@upstash/redis";
 import { AGE_RISK_TERMS, ADULT_CATEGORIES, adultCategoryBySlugOrName, adultCategoryMatchTerms } from "@/lib/adult-taxonomy";
 import { slugify, type Video } from "@/lib/videos";
 
@@ -96,11 +98,36 @@ let recordsPromise: Promise<Video[]> | undefined;
 let recordsBySlugPromise: Promise<Map<string, Video>> | undefined;
 const filteredCatalogCache = new Map<string, Video[]>();
 
+type RemoteCatalogManifest = { schema: number; version: string; records: number; chunks: string[] };
+
+async function remotePornhubContents() {
+  const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
+  if (!url || !token || process.env.NODE_ENV !== "production") return "";
+  try {
+    const redis = new Redis({ url, token, cache: "default" });
+    const storedManifest = await redis.get<RemoteCatalogManifest | string>("actrexx:pornhub:catalog:manifest");
+    const manifest = typeof storedManifest === "string" ? JSON.parse(storedManifest) as RemoteCatalogManifest : storedManifest;
+    if (!manifest || manifest.schema !== 1 || !Array.isArray(manifest.chunks) || !manifest.chunks.length) return "";
+    const storedChunks = await redis.mget<(string | null)[]>(...manifest.chunks);
+    if (!storedChunks || storedChunks.length !== manifest.chunks.length || storedChunks.some((item) => typeof item !== "string")) return "";
+    const contents = storedChunks.map((item) => {
+      const value = item as string;
+      return value.startsWith("gz:") ? gunzipSync(Buffer.from(value.slice(3), "base64")).toString("utf8") : value;
+    }).join("\n");
+    const count = contents.split(/\r?\n/).filter(Boolean).length;
+    return count === manifest.records ? contents : "";
+  } catch (error) {
+    console.warn("Remote Pornhub catalog unavailable; using deploy-time fallback.", error instanceof Error ? error.message : error);
+    return "";
+  }
+}
+
 export function getLocalPornhubVideos() {
   recordsPromise ??= Promise.all([
-    readFile(path.join(process.cwd(), "data/staging/pornhub/final.jsonl"), "utf8")
-      .catch(() => readFile(path.join(process.cwd(), "data/catalog/pornhub-featured.jsonl"), "utf8"))
-      .catch(() => ""),
+    process.env.NODE_ENV === "production"
+      ? remotePornhubContents().then((contents) => contents || readFile(path.join(process.cwd(), "data/catalog/pornhub-featured.jsonl"), "utf8").catch(() => ""))
+      : readFile(path.join(process.cwd(), "data/staging/pornhub/final.jsonl"), "utf8").catch(() => readFile(path.join(process.cwd(), "data/catalog/pornhub-featured.jsonl"), "utf8")).catch(() => ""),
     readFile(path.join(process.cwd(), "data/catalog/pornhub-manual.jsonl"), "utf8").catch(() => ""),
     readFile(path.join(process.cwd(), "data/staging/pornhub/manual.jsonl"), "utf8").catch(() => ""),
   ]).then((sources) => {

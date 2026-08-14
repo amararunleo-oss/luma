@@ -166,3 +166,20 @@ export const pornhubManualVideos = sqliteTable("pornhub_manual_videos", {
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [uniqueIndex("idx_pornhub_manual_slug_unique").on(table.slug)]);
+
+export const pornhubCatalogVideos = sqliteTable("pornhub_catalog_videos", {
+  sourceId: text("source_id").primaryKey(),
+  slug: text("slug").notNull(),
+  title: text("title").notNull(),
+  payloadJson: text("payload_json").notNull(),
+  publishedAt: text("published_at").notNull(),
+  collectionsJson: text("collections_json").notNull(),
+  popularityRank: integer("popularity_rank").notNull(),
+  syncVersion: text("sync_version").notNull(),
+  status: text("status", { enum: ["active", "inactive"] }).notNull().default("active"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("idx_pornhub_catalog_slug_unique").on(table.slug),
+  index("idx_pornhub_catalog_version_status").on(table.syncVersion, table.status, table.popularityRank),
+]);

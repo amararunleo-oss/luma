@@ -1,0 +1,67 @@
+
+> actrexx@0.1.0 dev
+> next dev -p 3016
+
+▲ Next.js 16.2.6 (Turbopack)
+- Local:         http://localhost:3016
+- Network:       http://192.168.1.3:3016
+- Environments: .env.local
+✓ Ready in 10.2s
+
+○ Compiling /watch/[slug] ...
+ GET /watch/pornhub-embed-test-6a6808483719d 200 in 5.4s (next.js: 3.6s, application-code: 1797ms)
+ GET / 200 in 1690ms (next.js: 121ms, application-code: 1569ms)
+ GET /media/previews/v1/001/1722/poster 307 in 3.1s (next.js: 2.9s, application-code: 206ms)
+ GET /media/previews/v1/001/1727/poster 307 in 3.1s (next.js: 2.9s, application-code: 205ms)
+ GET /media/previews/v1/001/1732/poster 307 in 3.1s (next.js: 2.9s, application-code: 202ms)
+ GET /media/previews/v1/001/1737/poster 307 in 3.1s (next.js: 2.9s, application-code: 202ms)
+ GET /media/previews/v1/008/8022/poster 307 in 1519ms (next.js: 1315ms, application-code: 204ms)
+ GET /media/previews/v1/080/80679/poster 307 in 1517ms (next.js: 1312ms, application-code: 205ms)
+ GET /media/previews/v1/056/56938/poster 307 in 51ms (next.js: 25ms, application-code: 26ms)
+ GET /media/previews/v1/006/6708/poster 307 in 67ms (next.js: 54ms, application-code: 13ms)
+ GET /media/previews/v1/080/80193/poster 307 in 86ms (next.js: 69ms, application-code: 17ms)
+ GET /media/previews/v1/001/1742/poster 307 in 118ms (next.js: 35ms, application-code: 83ms)
+ GET /media/previews/v1/001/1747/poster 307 in 49ms (next.js: 22ms, application-code: 27ms)
+ GET /media/previews/v1/001/1751/poster 307 in 105ms (next.js: 31ms, application-code: 74ms)
+ GET /media/previews/v1/001/1755/poster 307 in 214ms (next.js: 140ms, application-code: 74ms)
+ GET /media/previews/v1/001/1759/poster 307 in 246ms (next.js: 223ms, application-code: 23ms)
+ GET /media/previews/v1/001/1763/poster 307 in 291ms (next.js: 252ms, application-code: 39ms)
+ GET /media/previews/v1/001/1768/poster 307 in 25ms (next.js: 13ms, application-code: 13ms)
+ GET /media/previews/v1/001/1773/poster 307 in 68ms (next.js: 35ms, application-code: 33ms)
+ GET /media/previews/v1/001/1778/poster 307 in 43ms (next.js: 17ms, application-code: 26ms)
+ GET /media/previews/v1/001/1783/poster 307 in 40ms (next.js: 17ms, application-code: 24ms)
+ GET /media/previews/v1/001/1788/poster 307 in 100ms (next.js: 51ms, application-code: 49ms)
+ GET /media/previews/v1/001/1793/poster 307 in 40ms (next.js: 13ms, application-code: 27ms)
+ GET /media/previews/v1/001/1808/poster 307 in 218ms (next.js: 70ms, application-code: 149ms)
+ GET /media/previews/v1/001/1798/poster 307 in 326ms (next.js: 300ms, application-code: 26ms)
+ GET /media/previews/v1/001/1813/poster 307 in 35ms (next.js: 11ms, application-code: 24ms)
+ GET /media/previews/v1/022/22656/poster 307 in 39ms (next.js: 8ms, application-code: 31ms)
+ GET /media/previews/v1/022/22661/poster 307 in 162ms (next.js: 140ms, application-code: 22ms)
+ GET /media/previews/v1/022/22666/poster 307 in 191ms (next.js: 167ms, application-code: 24ms)
+ GET /media/previews/v1/022/22671/poster 307 in 269ms (next.js: 216ms, application-code: 54ms)
+ GET /media/previews/v1/022/22676/poster 307 in 391ms (next.js: 296ms, application-code: 94ms)
+ GET /porn-videos/latest 200 in 4.7s (next.js: 3.0s, generate-params: 696ms, application-code: 1725ms)
+ GET /manifest.webmanifest 200 in 114ms (next.js: 91ms, application-code: 23ms)
+ GET /swipe-videos 200 in 2.5s (next.js: 1490ms, application-code: 981ms)
+[browser] Image with src "/media/previews/v1/008/8022/poster" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
+Read more: https://nextjs.org/docs/app/api-reference/components/image#loading
+⚠ Blocked cross-origin request to Next.js dev resource /_next/webpack-hmr from "127.0.0.1".
+Cross-origin access to Next.js dev resources is blocked by default for safety.
+
+To allow this host in development, add it to "allowedDevOrigins" in next.config.js and restart the dev server:
+
+// next.config.js
+module.exports = {
+  allowedDevOrigins: ['127.0.0.1'],
+}
+
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+ GET /watch/pornhub-embed-test-6a6808483719d 200 in 4.8s (next.js: 649ms, application-code: 4.1s)
+ GET /watch/pornhub-embed-test-6a6808483719d 200 in 982ms (next.js: 40ms, application-code: 941ms)
+ GET /watch/pornhub-embed-test-6a6808483719d 200 in 1016ms (next.js: 26ms, application-code: 990ms)
+ GET /watch/pornhub-embed-test-6a6808483719d 200 in 1238ms (next.js: 33ms, application-code: 1205ms)
+ GET /watch/pornhub-embed-test-6a6808483719d 200 in 884ms (next.js: 20ms, application-code: 864ms)
+ GET /watch/pornhub-embed-test-6a6808483719d 200 in 2.5s (next.js: 43ms, application-code: 2.5s)
+✓ Compiled in 869ms
+ GET /watch/pornhub-embed-test-6a6808483719d 200 in 4.8s (next.js: 302ms, application-code: 4.5s)
+ GET /watch/pornhub-embed-test-6a6808483719d 200 in 3.1s (next.js: 32ms, application-code: 3.1s)
