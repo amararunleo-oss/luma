@@ -384,13 +384,12 @@ img { max-width: 100%; }
 .player-frame { aspect-ratio:16 / 9; width:100%; max-width:760px; margin:0; position:relative; overflow:hidden; border:0; border-radius:var(--card-radius); background:#000; box-shadow:0 18px 46px rgba(31,18,24,.14),0 2px 8px rgba(31,18,24,.08); isolation:isolate; }
 /* Recovery affordance when the embed never fires load, so a dead player does not
    force a full page reload. */
-/* onLoad is unreliable for cross-origin embeds, so this can appear over a video that
-   is playing fine. It must never swallow clicks meant for the player. */
 .player-stalled { position:absolute; z-index:4; inset:auto 0 0 0; padding:13px 15px; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; background:linear-gradient(180deg,rgba(9,6,8,0),rgba(9,6,8,.9)); color:#fff; pointer-events:none; }
 .player-stalled > * { pointer-events:auto; }
 .player-stalled p { margin:0; font-size:10px; }
-.player-stalled button { min-height:34px; padding:0 12px; display:flex; align-items:center; gap:6px; border:1px solid rgba(255,255,255,.28); border-radius:var(--control-radius); background:rgba(255,255,255,.1); color:#fff; font-size:9.5px; font-weight:700; cursor:pointer; }
-.player-stalled button:hover { border-color:rgba(255,255,255,.55); background:rgba(255,255,255,.18); }
+.player-stalled-actions { display:flex; align-items:center; gap:8px; }
+.player-stalled button, .player-stalled a { min-height:34px; padding:0 12px; display:flex; align-items:center; gap:6px; border:1px solid rgba(255,255,255,.28); border-radius:var(--control-radius); background:rgba(255,255,255,.1); color:#fff; font-size:9.5px; font-weight:700; cursor:pointer; text-decoration:none; }
+.player-stalled button:hover, .player-stalled a:hover { border-color:rgba(255,255,255,.55); background:rgba(255,255,255,.18); }
 .player-poster > img { width:100%; height:100%; display:block; object-fit:cover; filter:brightness(.7) saturate(.86); transform:scale(1.002); }
 .player-poster::after { content:""; position:absolute; inset:0; background:linear-gradient(180deg,rgba(10,5,8,.08) 30%,rgba(10,5,8,.68) 100%),linear-gradient(100deg,rgba(10,5,8,.16),transparent 60%); }
 .player-poster > button { position:absolute; z-index:2; inset:0; display:grid; place-content:center; justify-items:center; gap:11px; border:0; background:transparent; color:white; cursor:pointer; }
@@ -402,6 +401,13 @@ img { max-width: 100%; }
 .player-poster-meta strong { overflow:hidden; font-size:14px; font-weight:630; text-overflow:ellipsis; white-space:nowrap; }
 .player-quality { position:absolute; z-index:2; right:18px; bottom:18px; padding:5px 7px; border:1px solid rgba(255,255,255,.28); border-radius:5px; background:rgba(15,10,13,.45); color:white; font-size:9px; font-weight:740; letter-spacing:.05em; pointer-events:none; backdrop-filter:blur(8px); }
 .player-embed-crop { position:absolute; z-index:1; inset:0; overflow:hidden; background:#000; }
+/* Some embeds run an interstitial (a bot check that reloads once solved, for
+   example) before the real player appears, which otherwise shows as a plain black
+   box for several seconds. pointer-events:none so it never blocks a click meant for
+   the iframe underneath once the real player has actually appeared. */
+.player-loading { position:absolute; z-index:2; inset:0; display:grid; place-content:center; justify-items:center; gap:12px; background:#000; color:#c9c1c6; pointer-events:none; }
+.player-loading > span { width:34px; height:34px; border:2px solid rgba(255,255,255,.14); border-top-color:var(--accent); border-radius:50%; animation:spin .85s linear infinite; }
+.player-loading > p { margin:0; font-size:10px; }
 .player-embed-crop iframe { position:absolute; inset:0; width:100%; height:100%; display:block; border:0; transform:translateZ(0); }
 .player-fullscreen { width:42px; height:40px; padding:0; position:absolute; z-index:3; right:4px; bottom:3px; display:grid; place-items:center; border:0; background:rgba(8,7,8,.5); color:#fff; cursor:pointer; opacity:.9; transition:opacity .18s,background .18s; }
 .player-frame:hover .player-fullscreen, .player-fullscreen:focus-visible { opacity:1; background:rgba(8,7,8,.78); outline:1px solid rgba(255,255,255,.32); outline-offset:-1px; }

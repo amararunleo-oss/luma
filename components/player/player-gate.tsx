@@ -10,19 +10,32 @@ type FullscreenElement = HTMLDivElement & { webkitRequestFullscreen?: () => Prom
 // and the provider's own page can delay or swallow it. Remounting on a timer
 // therefore risks destroying a video the visitor is already watching, so nothing is
 // remounted automatically. The timeout only reveals a manual reload control.
-const LOAD_TIMEOUT_MS = 9_000;
+const LOAD_TIMEOUT_MS = 12_000;
+// Some providers serve an interstitial document that runs a script and then
+// navigates the same iframe again (a bot check that reloads once solved, for
+// example). Each navigation fires its own onLoad, so the first onLoad is not
+// necessarily the real content. The overlay is only cleared once this long has
+// passed since the *last* onLoad without another one following it.
+const SETTLE_MS = 1_500;
 
-export function PlayerGate({ embedUrl, title }: { embedUrl: string; title: string; aspectRatio?: number }) {
+export function PlayerGate({ embedUrl, title, sourceUrl }: { embedUrl: string; title: string; aspectRatio?: number; sourceUrl?: string }) {
   const frame = useRef<FullscreenElement>(null);
   const [mounted, setMounted] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [stalled, setStalled] = useState(false);
+  const [loading, setLoading] = useState(true);
   const loaded = useRef(false);
+  const settleTimer = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     const mount = window.requestAnimationFrame(() => setMounted(true));
     return () => window.cancelAnimationFrame(mount);
   }, []);
+
+  useEffect(() => {
+    loaded.current = false;
+    return () => window.clearTimeout(settleTimer.current);
+  }, [attempt, embedUrl]);
 
   // Offers the reload control if load never fired. It never remounts on its own.
   useEffect(() => {
@@ -33,11 +46,24 @@ export function PlayerGate({ embedUrl, title }: { embedUrl: string; title: strin
     return () => window.clearTimeout(watch);
   }, [attempt, embedUrl, mounted]);
 
+  const handleLoad = () => {
+    loaded.current = true;
+    setStalled(false);
+    window.clearTimeout(settleTimer.current);
+    settleTimer.current = window.setTimeout(() => setLoading(false), SETTLE_MS);
+  };
+
   const reloadPlayer = () => {
+    window.clearTimeout(settleTimer.current);
     loaded.current = false;
     setStalled(false);
+    setLoading(true);
     setAttempt((value) => value + 1);
   };
+
+  // loading starts true and stays true until the settle debounce fires. A manual
+  // reload resets it through reloadPlayer, which is event-driven (not in an effect).
+  // The effect only manages the cleanup.
 
   const enterFullscreen = async () => {
     const element = frame.current;
@@ -58,13 +84,22 @@ export function PlayerGate({ embedUrl, title }: { embedUrl: string; title: strin
           allowFullScreen
           scrolling="no"
           referrerPolicy="origin-when-cross-origin"
-          onLoad={() => { loaded.current = true; setStalled(false); }}
+          onLoad={handleLoad}
         />}
       </div>
+      {loading && !stalled && (
+        <div className="player-loading" role="status">
+          <span />
+          <p>Loading player…</p>
+        </div>
+      )}
       {stalled && (
         <div className="player-stalled" role="status">
-          <p>The player did not finish loading.</p>
-          <button type="button" onClick={reloadPlayer}><RotateCcw size={14} aria-hidden="true" />Reload player</button>
+          <p>Player took too long to load.</p>
+          <div className="player-stalled-actions">
+            <button type="button" onClick={reloadPlayer}><RotateCcw size={14} aria-hidden="true" />Reload</button>
+            {sourceUrl && <a href={sourceUrl} target="_blank" rel="noopener noreferrer">Watch on source site<Maximize2 size={12} aria-hidden="true" /></a>}
+          </div>
         </div>
       )}
       <button className="player-fullscreen" type="button" aria-label="Open video in full screen" title="Full screen" onClick={enterFullscreen}>
