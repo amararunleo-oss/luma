@@ -123,7 +123,6 @@ export function PopularHero({ videos }: { videos: Video[] }) {
               fill
               sizes="(max-width: 820px) 100vw, 70vw"
               priority={index === 0}
-              unoptimized
             />
             <div className="popular-hero-shade" />
             <div className="popular-hero-copy">

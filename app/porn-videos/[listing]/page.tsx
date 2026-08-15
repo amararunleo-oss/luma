@@ -49,7 +49,8 @@ export async function generateMetadata({ params, searchParams }: Props) {
     description: definition.description,
     path: `/porn-videos/${listing}`,
     page: query.page,
-    index: result.total >= ADULT_CATEGORY_MINIMUM_VIDEOS && !hasCatalogFilters(filters),
+    // Page 1 carries the ranking intent; deeper pages stay crawl-only.
+    index: pageNumber(query.page) === 1 && result.total >= ADULT_CATEGORY_MINIMUM_VIDEOS && !hasCatalogFilters(filters),
     keywords: [definition.title.toLowerCase(), "adult video categories", "porn videos"],
   });
 }

@@ -304,7 +304,7 @@ function SearchResult({ item, active, close }: { item: SearchSuggestion; active:
   return (
     <Link adTrigger={item.href.startsWith("/watch/")} id={item.id} className={`search-result${active ? " active" : ""}`} role="option" aria-selected={active} href={item.href} onClick={close}>
       {item.image
-        ? <Image src={item.image} alt="" width={76} height={43} sizes="76px" unoptimized />
+        ? <Image src={item.image} alt="" width={76} height={43} sizes="76px" />
         : <span className="search-result-icon" aria-hidden="true">{item.label.slice(0, 1).toUpperCase()}</span>}
       <span><strong>{item.label}</strong><small>{item.meta}</small></span>
     </Link>

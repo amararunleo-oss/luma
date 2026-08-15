@@ -83,8 +83,18 @@ test("redirects thumbnail bytes directly to R2 instead of proxying them through 
     source("lib/cloudflare/r2-s3.ts"),
   ]);
 
-  assert.match(thumbnail, /unoptimized/);
+  // Thumbnail bytes still bypass Vercel: the media route redirects to R2, and resizing
+  // is delegated to a custom next/image loader rather than the Vercel optimizer. The
+  // loader is a passthrough until the media CDN is configured.
   assert.match(mediaRoute, /status: 307/);
+  const nextConfig = await source("next.config.ts");
+  const imageLoader = await source("lib/image-loader.ts");
+  assert.doesNotMatch(nextConfig, /unoptimized/);
+  assert.match(nextConfig, /loader: "custom"/);
+  assert.match(nextConfig, /loaderFile: "\.\/lib\/image-loader\.ts"/);
+  assert.match(imageLoader, /NEXT_PUBLIC_MEDIA_RESIZE_BASE/);
+  assert.match(imageLoader, /if \(!resizeBase\) return src;/);
+  assert.doesNotMatch(thumbnail, /unoptimized/);
   assert.match(mediaRoute, /location/);
   assert.match(mediaRoute, /cdn-cache-control/);
   assert.match(mediaRoute, /signedR2ObjectUrl/);
@@ -795,7 +805,13 @@ test("keeps vertical swipe videos isolated, bounded, and VAST-enabled", async ()
 
   assert.match(page, /getPopularVideos\(200\)/);
   assert.match(page, /NEXT_PUBLIC_EXOCLICK_VERTICAL_VAST_TAG_URL/);
-  assert.match(feed, /const AD_INTERVAL = 3/);
+  // Ad density: a forced video ad every sixth reel, and the interstitial spaced out
+  // and capped instead of firing on every swipe.
+  assert.match(feed, /const AD_INTERVAL = 6/);
+  assert.match(feed, /const INSTANT_AD_EVERY = 5/);
+  assert.match(feed, /const INSTANT_AD_CAP = 4/);
+  assert.match(feed, /key=\{`reels-instant-\$\{instantAdSlot\}`\}/);
+  assert.doesNotMatch(feed, /key=\{`reels-instant-\$\{activeIndex\}`\}/);
   assert.match(feed, /const pendingAd = items\.findIndex/);
   assert.match(feed, /index === activeIndex && <VerticalVastSlide/);
 
@@ -815,7 +831,7 @@ test("keeps vertical swipe videos isolated, bounded, and VAST-enabled", async ()
   assert.match(feed, /if \(Math\.abs\(root\.scrollTop - top\) > 1\) root\.scrollTop = top;/);
   assert.match(feed, /if \(frames < 40\) frame = window\.requestAnimationFrame\(settle\)/);
   assert.match(feed, /viewport\?\.addEventListener\("resize", repin\)/);
-  assert.match(feed, /key=\{`reels-instant-\$\{activeIndex\}`\} placement="catalog-instant"/);
+  assert.match(feed, /placement="catalog-instant"/);
   assert.match(feed, /Math\.abs\(index - activeIndex\) <= 1/);
   assert.match(feed, /reels-feed-locked/);
   assert.match(feed, /if \(adActive && \["ArrowDown", "PageDown", "ArrowUp", "PageUp", " "\]/);

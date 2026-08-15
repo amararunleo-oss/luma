@@ -5,11 +5,12 @@ import { useEffect, useRef, useState } from "react";
 
 type FullscreenElement = HTMLDivElement & { webkitRequestFullscreen?: () => Promise<void> | void };
 
-// A third-party embed on a slow connection can take longer than this to fire load.
-// Remounting too early throws away a load that was about to finish, so the window is
-// generous and the number of automatic attempts is capped.
+// The embed is cross-origin, so there is no reliable way to observe whether it is
+// actually playing. onLoad is the only signal and it is not dependable: extensions
+// and the provider's own page can delay or swallow it. Remounting on a timer
+// therefore risks destroying a video the visitor is already watching, so nothing is
+// remounted automatically. The timeout only reveals a manual reload control.
 const LOAD_TIMEOUT_MS = 9_000;
-const MAX_AUTO_RETRIES = 2;
 
 export function PlayerGate({ embedUrl, title }: { embedUrl: string; title: string; aspectRatio?: number }) {
   const frame = useRef<FullscreenElement>(null);
@@ -17,33 +18,23 @@ export function PlayerGate({ embedUrl, title }: { embedUrl: string; title: strin
   const [attempt, setAttempt] = useState(0);
   const [stalled, setStalled] = useState(false);
   const loaded = useRef(false);
-  const autoRetries = useRef(0);
 
   useEffect(() => {
     const mount = window.requestAnimationFrame(() => setMounted(true));
     return () => window.cancelAnimationFrame(mount);
   }, []);
 
-  // attempt is a dependency so every remount gets its own timer. Without it only the
-  // first attempt was ever watched: if that retry also stalled, nothing rescheduled
-  // and the player stayed dead until the page was reloaded by hand.
+  // Offers the reload control if load never fired. It never remounts on its own.
   useEffect(() => {
     if (!mounted) return;
-    loaded.current = false;
-    const retry = window.setTimeout(() => {
-      if (loaded.current) return;
-      if (autoRetries.current < MAX_AUTO_RETRIES) {
-        autoRetries.current += 1;
-        setAttempt((value) => value + 1);
-      } else {
-        setStalled(true);
-      }
+    const watch = window.setTimeout(() => {
+      if (!loaded.current) setStalled(true);
     }, LOAD_TIMEOUT_MS);
-    return () => window.clearTimeout(retry);
+    return () => window.clearTimeout(watch);
   }, [attempt, embedUrl, mounted]);
 
   const reloadPlayer = () => {
-    autoRetries.current = 0;
+    loaded.current = false;
     setStalled(false);
     setAttempt((value) => value + 1);
   };

@@ -14,7 +14,12 @@ type FeedVideo = { kind: "video"; video: ReelVideo; position: number };
 type FeedAd = { kind: "ad"; checkpoint: number };
 type FeedItem = FeedVideo | FeedAd;
 
-const AD_INTERVAL = 3;
+// Reels ad in every third slide plus an interstitial on every swipe was well past
+// what the format tolerates. The forced video ad now sits at the low end of the
+// normal 5-8 range, and the interstitial is both spaced out and capped.
+const AD_INTERVAL = 6;
+const INSTANT_AD_EVERY = 5;
+const INSTANT_AD_CAP = 4;
 
 function buildFeed(videos: ReelVideo[], includeAds: boolean): FeedItem[] {
   const items: FeedItem[] = [];
@@ -56,7 +61,7 @@ function ReelScene({ active, video }: { active: boolean; video: ReelVideo }) {
 
   return (
     <div className={`reel-scene${active ? " active" : ""}`}>
-      <Image className="reel-scene-backdrop" src={video.thumbnail} alt="" fill sizes="430px" unoptimized aria-hidden="true" />
+      <Image className="reel-scene-backdrop" src={video.thumbnail} alt="" fill sizes="430px" aria-hidden="true" />
       <div className="reel-scene-shade" />
       <div className="reel-scene-player" style={{ aspectRatio: safeRatio }}>
         {active ? (
@@ -67,7 +72,7 @@ function ReelScene({ active, video }: { active: boolean; video: ReelVideo }) {
             allow="autoplay; fullscreen; picture-in-picture"
             referrerPolicy="origin-when-cross-origin"
           />
-        ) : <Image src={video.thumbnail} alt={video.sceneTitle} fill sizes="430px" unoptimized />}
+        ) : <Image src={video.thumbnail} alt={video.sceneTitle} fill sizes="430px" />}
       </div>
       <div className="reel-scene-topline"><Clapperboard size={14} aria-hidden="true" /><span>Popular scene</span><i /> <span>{typeLabel(video.type)}</span></div>
       <button className="reel-share" type="button" onClick={shareScene} aria-label={`Share ${video.sceneTitle}`}>
@@ -276,6 +281,17 @@ export function ReelsFeed({ videos, vastTag }: { videos: ReelVideo[]; vastTag?: 
   })();
   const progress = `${Math.max(1, currentVideoPosition / videos.length * 100)}%`;
 
+  // The AdSlot key drives the zone request, so it must only change when a new
+  // interstitial is actually wanted. Keying it on activeIndex remounted the slot on
+  // every single swipe, which requested a fresh overlay each time.
+  const instantAdSlot = (() => {
+    const current = items[activeIndex];
+    if (current?.kind !== "video" || current.position <= 1) return null;
+    if (current.position % INSTANT_AD_EVERY !== 0) return null;
+    const slot = current.position / INSTANT_AD_EVERY;
+    return slot <= INSTANT_AD_CAP ? slot : null;
+  })();
+
   if (!videos.length) {
     return <div className="reels-empty"><Clapperboard size={24} /><h1>Swipe videos are temporarily unavailable</h1><Link href="/most-popular">Browse popular scenes</Link><Link href="/">Back to home</Link></div>;
   }
@@ -307,7 +323,7 @@ export function ReelsFeed({ videos, vastTag }: { videos: ReelVideo[]; vastTag?: 
         })}
       </div>
       <div className="reels-swipe-guide" aria-hidden="true"><i /><span>Swipe up to explore</span></div>
-      {activeIndex > 0 && items[activeIndex]?.kind === "video" && <AdSlot active key={`reels-instant-${activeIndex}`} placement="catalog-instant" />}
+      {instantAdSlot !== null && <AdSlot active key={`reels-instant-${instantAdSlot}`} placement="catalog-instant" />}
     </div>
   );
 }

@@ -20,7 +20,9 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
     description,
     path: "/porn-videos",
     page: query.page,
-    index: result.total >= ADULT_CATEGORY_MINIMUM_VIDEOS && !hasCatalogFilters(filters),
+    // Deep pages are 25 thumbnails with no unique copy. They stay crawlable so watch
+    // pages are still discovered, but they do not compete for indexing.
+    index: pageNumber(query.page) === 1 && result.total >= ADULT_CATEGORY_MINIMUM_VIDEOS && !hasCatalogFilters(filters),
     keywords: ["adult porn videos", "popular sex videos", "adult video categories"],
   });
 }

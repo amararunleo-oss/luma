@@ -25,7 +25,8 @@ export async function generateMetadata({ params, searchParams }: Props) {
     description: category.description,
     path: `/porn-category/${category.slug}`,
     page: query.page,
-    index: result.total >= ADULT_CATEGORY_MINIMUM_VIDEOS && !hasCatalogFilters(filters),
+    // Only the first page of a category is worth indexing; the rest stay crawl-only.
+    index: pageNumber(query.page) === 1 && result.total >= ADULT_CATEGORY_MINIMUM_VIDEOS && !hasCatalogFilters(filters),
     keywords: [category.name.toLowerCase(), ...category.aliases.slice(0, 5).map((alias) => `${alias} videos`)],
   });
 }
