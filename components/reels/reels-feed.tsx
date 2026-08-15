@@ -175,19 +175,23 @@ export function ReelsFeed({ videos, vastTag }: { videos: ReelVideo[]; vastTag?: 
 
   // Mobile browsers resize the viewport when the URL bar shows or hides, which
   // changes every slide height and leaves the feed halfway between two reels.
-  // Re-pin the active slide whenever that happens.
+  // visualViewport is watched too because iOS Safari does not always fire a window
+  // resize for that.
   useEffect(() => {
     let frame = 0;
     const repin = () => {
       window.cancelAnimationFrame(frame);
       frame = window.requestAnimationFrame(() => pinToIndex(activeIndexRef.current));
     };
+    const viewport = window.visualViewport;
     window.addEventListener("resize", repin);
     window.addEventListener("orientationchange", repin);
+    viewport?.addEventListener("resize", repin);
     return () => {
       window.cancelAnimationFrame(frame);
       window.removeEventListener("resize", repin);
       window.removeEventListener("orientationchange", repin);
+      viewport?.removeEventListener("resize", repin);
     };
   }, [pinToIndex]);
 
@@ -232,6 +236,35 @@ export function ReelsFeed({ videos, vastTag }: { videos: ReelVideo[]; vastTag?: 
     if (!adActive) return;
     pinToIndex(activeIndex);
   }, [activeIndex, adActive, pinToIndex]);
+
+  // A single pin is not enough. The swipe or wheel gesture that reached the ad is
+  // still coasting when overflow is hidden, and its in-flight animation overrides
+  // scrollTop, so the slide ends up parked between two reels. Mobile viewport
+  // resizing while an ad plays does the same thing. Keep re-asserting the position
+  // for as long as the ad is on screen.
+  useEffect(() => {
+    if (!adActive) return;
+    const root = feedRef.current;
+    if (!root) return;
+    let frames = 0;
+    let frame = 0;
+    const enforce = () => {
+      const top = slidesRef.current.get(activeIndexRef.current)?.offsetTop;
+      if (top === undefined) return;
+      if (Math.abs(root.scrollTop - top) > 1) root.scrollTop = top;
+    };
+    const settle = () => {
+      enforce();
+      frames += 1;
+      if (frames < 40) frame = window.requestAnimationFrame(settle);
+    };
+    frame = window.requestAnimationFrame(settle);
+    root.addEventListener("scroll", enforce, { passive: true });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      root.removeEventListener("scroll", enforce);
+    };
+  }, [activeIndex, adActive]);
 
   const currentVideoPosition = (() => {
     const current = items[activeIndex];
