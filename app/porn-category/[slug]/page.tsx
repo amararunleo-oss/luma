@@ -19,7 +19,7 @@ export async function generateMetadata({ params, searchParams }: Props) {
   const category = adultCategoryBySlugOrName(slug);
   if (!category) return {};
   const filters = parseCatalogFilters(query);
-  const result = await listVideos({ catalog: "porn", tagSlugs: adultCategoryMatchTerms(category), minYear: 2024, page: 1, pageSize: 1 });
+  const result = await listVideos({ catalog: "porn", tagSlugs: adultCategoryMatchTerms(category), page: 1, pageSize: 1 });
   return catalogMetadata({
     title: `${category.name} - Popular Adult Videos`,
     description: category.description,
@@ -37,7 +37,7 @@ export default async function PornCategoryPage({ params, searchParams }: Props) 
   const filters = parseCatalogFilters(query);
   const page = pageNumber(query.page);
   const base = `/porn-category/${category.slug}`;
-  const result = await listVideos({ catalog: "porn", tagSlugs: adultCategoryMatchTerms(category), minYear: 2024, ...filterQueryOptions(filters), order: filters.order ?? "latest", page, pageSize: 25 });
+  const result = await listVideos({ catalog: "porn", tagSlugs: adultCategoryMatchTerms(category), ...filterQueryOptions(filters), order: filters.order ?? "latest", page, pageSize: 25 });
   const pages = Math.max(1, Math.ceil(result.total / result.pageSize));
   if (page > pages) notFound();
   const origin = configuredSiteOrigin();
@@ -55,7 +55,7 @@ export default async function PornCategoryPage({ params, searchParams }: Props) 
         pageSize={result.pageSize}
         prePaginated
         basePath={catalogFilterPath(base, filters)}
-        filters={{ basePath: base, values: filters, hideType: true }}
+        filters={{ basePath: base, values: filters, hideType: true, hideYear: true }}
         beforeGrid={<AdultCategoryStrip activeSlug={category.slug} />}
       />
       <SiteFooter />

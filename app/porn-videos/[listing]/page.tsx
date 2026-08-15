@@ -14,6 +14,9 @@ const listings = {
     title: "Latest Porn Videos",
     description: "Discover recently added adult porn videos across popular categories with clear titles, durations and related tags.",
     query: { order: "latest" },
+    // Newest to oldest is fixed here, so the sort control is dropped rather than
+    // offered and then ignored.
+    lockOrder: true,
   },
   popular: {
     eyebrow: "Popular now",
@@ -27,7 +30,7 @@ const listings = {
     description: "Explore highly rated adult porn videos with enough rating signals to support useful category discovery.",
     query: { order: "rating", minRating: 70 },
   },
-} as const satisfies Record<string, { eyebrow: string; title: string; description: string; query: QueryOptions }>;
+} as const satisfies Record<string, { eyebrow: string; title: string; description: string; query: QueryOptions; lockOrder?: boolean }>;
 
 type Props = { params: Promise<{ listing: string }>; searchParams: Promise<CatalogFilterParams> };
 
@@ -40,7 +43,7 @@ export async function generateMetadata({ params, searchParams }: Props) {
   const definition = listings[listing as keyof typeof listings];
   if (!definition) return {};
   const filters = parseCatalogFilters(query);
-  const result = await listVideos({ catalog: "porn", minYear: 2024, ...definition.query, page: 1, pageSize: 1 });
+  const result = await listVideos({ catalog: "porn", ...definition.query, page: 1, pageSize: 1 });
   return catalogMetadata({
     title: definition.title,
     description: definition.description,
@@ -55,9 +58,11 @@ export default async function PornVideoListingPage({ params, searchParams }: Pro
   const [{ listing }, query] = await Promise.all([params, searchParams]);
   const definition = listings[listing as keyof typeof listings];
   if (!definition) notFound();
-  const filters = parseCatalogFilters(query);
+  const parsed = parseCatalogFilters(query);
+  const lockOrder = "lockOrder" in definition && definition.lockOrder;
+  const filters = lockOrder ? { ...parsed, order: undefined } : parsed;
   const page = pageNumber(query.page);
-  const result = await listVideos({ catalog: "porn", minYear: 2024, ...definition.query, ...filterQueryOptions(filters), page, pageSize: 25 });
+  const result = await listVideos({ catalog: "porn", ...definition.query, ...filterQueryOptions(filters), page, pageSize: 25 });
   const pages = Math.max(1, Math.ceil(result.total / result.pageSize));
   if (page > pages) notFound();
   return (
@@ -73,7 +78,7 @@ export default async function PornVideoListingPage({ params, searchParams }: Pro
         pageSize={result.pageSize}
         prePaginated
         basePath={catalogFilterPath(`/porn-videos/${listing}`, filters)}
-        filters={{ basePath: `/porn-videos/${listing}`, values: filters, hideType: true }}
+        filters={{ basePath: `/porn-videos/${listing}`, values: filters, hideType: true, hideYear: true, hideOrder: lockOrder }}
         beforeGrid={<AdultCategoryStrip />}
       />
       <SiteFooter />

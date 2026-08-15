@@ -12,9 +12,13 @@ type SelectMenuProps = {
   options: SelectMenuOption[];
   ariaLabel: string;
   required?: boolean;
+  /** Extra class on the wrapper, for compact placements such as the header search. */
+  variant?: string;
+  /** Notified when the selection changes, for callers that react without submitting. */
+  onValueChange?: (value: string) => void;
 };
 
-export function SelectMenu({ id, name, defaultValue = "", options, ariaLabel, required = false }: SelectMenuProps) {
+export function SelectMenu({ id, name, defaultValue = "", options, ariaLabel, required = false, variant, onValueChange }: SelectMenuProps) {
   const root = useRef<HTMLDivElement>(null);
   const generatedId = useId();
   const listboxId = `${id}-${generatedId.replace(/:/g, "")}-listbox`;
@@ -55,6 +59,8 @@ export function SelectMenu({ id, name, defaultValue = "", options, ariaLabel, re
     setSelectedIndex(index);
     setActiveIndex(index);
     setOpen(false);
+    const value = options[index]?.value;
+    if (value !== undefined) onValueChange?.(value);
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLButtonElement>) {
@@ -80,7 +86,7 @@ export function SelectMenu({ id, name, defaultValue = "", options, ariaLabel, re
   }
 
   return (
-    <div className={`select-menu${open ? " open" : ""}${openUp ? " open-up" : ""}`} ref={root}>
+    <div className={`select-menu${variant ? ` ${variant}` : ""}${open ? " open" : ""}${openUp ? " open-up" : ""}`} ref={root}>
       <input type="hidden" name={name} value={selected?.value ?? ""} required={required} />
       <button
         id={id}

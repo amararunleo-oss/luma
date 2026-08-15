@@ -14,7 +14,7 @@ const durationOptions: SelectMenuOption[] = [{ value: "", label: "Any length" },
 const ratingOptions: SelectMenuOption[] = [{ value: "", label: "Any rating" }, { value: "90", label: "90%+" }, { value: "80", label: "80%+" }, { value: "70", label: "70%+" }, { value: "60", label: "60%+" }, { value: "50", label: "50%+" }];
 const orderOptions: SelectMenuOption[] = [{ value: "", label: "Page default" }, { value: "latest", label: "Newest" }, { value: "popular", label: "Popular" }, { value: "rating", label: "Top rating" }, { value: "oldest", label: "Oldest" }];
 
-export function CatalogFilters({ basePath, values, hideType = false, hideYear = false }: { basePath: string; values: CatalogFilterValues; hideType?: boolean; hideYear?: boolean }) {
+export function CatalogFilters({ basePath, values, hideType = false, hideYear = false, hideOrder = false }: { basePath: string; values: CatalogFilterValues; hideType?: boolean; hideYear?: boolean; hideOrder?: boolean }) {
   const active = Boolean(values.type || values.year || values.duration || values.minRating || values.order);
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -48,7 +48,7 @@ export function CatalogFilters({ basePath, values, hideType = false, hideYear = 
 
   return (
     <div className={`filter-shell${open ? " open" : ""}`}>
-      <button ref={trigger} className="mobile-filter-trigger" type="button" aria-expanded={open} aria-controls="catalog-filter-form" onClick={() => setOpen(true)}><SlidersHorizontal size={15} aria-hidden="true" />{values.year ? `${values.year} · Filters` : "Refine results"}</button>
+      <button ref={trigger} className="mobile-filter-trigger" type="button" aria-expanded={open} aria-controls="catalog-filter-form" onClick={() => setOpen(true)}><SlidersHorizontal size={15} aria-hidden="true" />{!hideYear && values.year ? `${values.year} · Filters` : "Refine results"}</button>
       <button className="mobile-filter-backdrop" type="button" aria-label="Close filters" tabIndex={open ? 0 : -1} onClick={() => setOpen(false)} />
       <form id="catalog-filter-form" className="catalog-filters" action={basePath} method="get" onSubmit={applyFilters}>
         <div className="filter-mobile-heading"><strong>Refine results</strong><button type="button" aria-label="Close filters" onClick={() => setOpen(false)}><X size={17} aria-hidden="true" /></button></div>
@@ -57,7 +57,7 @@ export function CatalogFilters({ basePath, values, hideType = false, hideYear = 
         {!hideYear && <label htmlFor="filter-year"><span>Year</span><SelectMenu key={`year-${values.year ?? "all"}`} id="filter-year" name="year" ariaLabel="Filter by release year" defaultValue={values.year ? String(values.year) : ""} options={yearOptions} /></label>}
         <label htmlFor="filter-duration"><span>Duration</span><SelectMenu key={`duration-${values.duration ?? "all"}`} id="filter-duration" name="duration" ariaLabel="Filter by duration" defaultValue={values.duration ?? ""} options={durationOptions} /></label>
         <label htmlFor="filter-rating"><span>Rating</span><SelectMenu key={`rating-${values.minRating ?? "all"}`} id="filter-rating" name="rating" ariaLabel="Filter by minimum rating" defaultValue={values.minRating ? String(values.minRating) : ""} options={ratingOptions} /></label>
-        <label htmlFor="filter-order"><span>Sort</span><SelectMenu key={`order-${values.order ?? "default"}`} id="filter-order" name="order" ariaLabel="Sort results" defaultValue={values.order ?? ""} options={orderOptions} /></label>
+        {!hideOrder && <label htmlFor="filter-order"><span>Sort</span><SelectMenu key={`order-${values.order ?? "default"}`} id="filter-order" name="order" ariaLabel="Sort results" defaultValue={values.order ?? ""} options={orderOptions} /></label>}
         <button type="submit">Apply filters</button>
         {active && <Link className="filter-clear" href={basePath} aria-label="Clear filters"><X size={14} aria-hidden="true" />Clear</Link>}
       </form>

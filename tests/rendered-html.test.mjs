@@ -211,7 +211,7 @@ test("publishes a cached sitemap index with bounded catalog chunks", async () =>
   assert.match(sitemapHelpers, /actresses/);
   assert.match(sitemapHelpers, /works/);
   assert.match(robots, /sitemap\.xml/);
-  assert.match(robots, /disallow: \["\/api\/", "\/admin\/", "\/search"\]/);
+  assert.match(robots, /disallow: \["\/api\/", "\/admin\/"\]/);
   assert.match(robots, /Googlebot/);
   assert.match(robots, /GPTBot/);
   assert.match(videoRoute, /xmlns:video="http:\/\/www\.google\.com\/schemas\/sitemap-video\/1\.1"/);
@@ -280,22 +280,260 @@ test("protects Vercel compute without persisting transient D1 fallbacks", async 
   assert.match(upstash, /const inFlight = new Map/);
 });
 
-test("keeps homepage adult rails recent, strictly categorized, and complete", async () => {
-  const [previewScript, previewReader, home, watchPage] = await Promise.all([
+test("keeps the homepage adult library one most-viewed list instead of category rails", async () => {
+  const [previewScript, previewReader, home, catalog, watchPage] = await Promise.all([
     source("scripts/pornhub/build-home-preview.mjs"),
     source("lib/pornhub-local-preview.ts"),
     source("components/home/home-discovery.tsx"),
+    source("components/catalog.tsx"),
     source("app/watch/[slug]/page.tsx"),
   ]);
   assert.match(previewScript, /year >= 2024 && year <= 2026/);
   assert.match(previewScript, /hasStrictTaxonomyTerm/);
   assert.doesNotMatch(previewScript, /\[record\.title, \.\.\.\(record\.tags/);
+  assert.match(previewScript, /function selectMostViewed/);
+  assert.match(previewScript, /best: selectMostViewed\("best", bestLimit\)/);
   assert.match(previewReader, /pussyLicking: PornhubPreviewItem\[\]/);
-  assert.match(home, /preview\.sections\.doggy/);
-  assert.match(home, /preview\.sections\.blowjob/);
+
+  // One adult section only, rendered as a 20 item grid rather than a slider. The
+  // remaining category sections stay in the preview file for the featured
+  // fallback catalog, so they must not be rendered back onto the homepage.
+  assert.match(home, /const ADULT_LIST_SIZE = 20/);
+  assert.match(home, /preview\.sections\.best\.slice\(0, ADULT_LIST_SIZE\)/);
+  assert.match(home, /Best from Pornhub/);
+  assert.match(home, /className="video-grid"/);
+  assert.doesNotMatch(home, /preview\.sections\.(romantic|babe|anime|doggy|pussyLicking|stepFantasy|blowjob)/);
+  assert.equal(home.match(/<HomeVideoRail/g).length, 1);
+
+  // Both the header link and the button under the grid lead to the paginated
+  // adult listing, and the celebrity rail links to every year rather than one.
+  assert.match(home, /const ADULT_LIST_HREF = "\/porn-videos\/latest"/);
+  assert.match(home, /className="home-list-more-button" href=\{ADULT_LIST_HREF\}/);
+  assert.match(home, /href="\/latest"/);
+  assert.doesNotMatch(home, /\/latest\?year=/);
+
+  // Celebrity cards show the year, adult cards never do.
+  assert.match(home, /year: video\.year/);
+  assert.match(home, /source: "pornhub"/);
+  assert.match(catalog, /video-meta">\{video\.source !== "pornhub"/);
+
   assert.match(watchPage, /getRelatedVideos\(video, 10\)/);
-  assert.match(home, /href="\/porn-category\/doggy-style\?order=latest"/);
   assert.match(watchPage, /!isPornhub/);
+});
+
+test("suppresses non-embeddable adult videos everywhere and paginates the full adult catalog", async () => {
+  const [blocklist, reader, localCatalog, previewScript, home, listing, hub, category, filters] = await Promise.all([
+    source("data/catalog/pornhub-blocklist.json"),
+    source("lib/pornhub-blocklist.ts"),
+    source("lib/pornhub-local-catalog.ts"),
+    source("scripts/pornhub/build-home-preview.mjs"),
+    source("components/home/home-discovery.tsx"),
+    source("app/porn-videos/[listing]/page.tsx"),
+    source("app/porn-videos/page.tsx"),
+    source("app/porn-category/[slug]/page.tsx"),
+    source("components/catalog-filters.tsx"),
+  ]);
+
+  // The blocklist is applied to the single catalog reader, so listings, search,
+  // related videos, categories and watch pages all inherit it.
+  assert.match(blocklist, /"blocked":/);
+  assert.match(reader, /export function getPornhubBlocklist/);
+
+  // Preview ids are alphanumeric source viewkeys. Number() on them yields NaN, so
+  // a separate numericId is carried and React keys use the slug.
+  assert.match(previewScript, /numericId: Number\(record\.sourceNumericId\) \|\| 0/);
+  assert.match(home, /id: item\.numericId \|\| index \+ 1/);
+  assert.match(home, /<Fragment key=\{video\.slug\}>/);
+  assert.doesNotMatch(home, /Number\(item\.id\)/);
+  assert.match(localCatalog, /getPornhubBlocklist\(\)/);
+  assert.match(localCatalog, /blocked\.ids\.has\(String\(record\.sourceId \?\? ""\)\)/);
+  assert.match(localCatalog, /blocked\.slugs\.has\(record\.slug\)/);
+  assert.match(previewScript, /blocked\.ids\.has/);
+
+  // The adult listings page through the whole catalog instead of 2024 onwards.
+  assert.doesNotMatch(listing, /minYear: 2024/);
+  assert.doesNotMatch(hub, /minYear: 2024/);
+  assert.doesNotMatch(category, /minYear: 2024/);
+  assert.match(category, /hideYear: true/);
+
+  // Newest to oldest is fixed on the listing the homepage links to, and the year
+  // control is gone from the adult filter set.
+  assert.match(listing, /lockOrder: true/);
+  assert.match(listing, /order: undefined/);
+  assert.match(listing, /hideYear: true, hideOrder: lockOrder/);
+  assert.match(hub, /hideYear: true/);
+  assert.match(filters, /hideOrder = false/);
+  assert.match(filters, /\{!hideOrder && <label htmlFor="filter-order">/);
+});
+
+test("verifies embed playability without letting a bad marker empty the catalog", async () => {
+  const [verifier, validator, packageJson] = await Promise.all([
+    source("scripts/pornhub/verify-embeds.mjs"),
+    source("scripts/pornhub/validate-catalog.mjs"),
+    source("package.json"),
+  ]);
+
+  // The HTTP validator cannot see a refusing player, so the verifier reads the
+  // whole document and classifies the player payload instead.
+  assert.match(validator, /Range: "bytes=0-4095"/);
+  assert.match(verifier, /await response\.text\(\)/);
+  assert.match(verifier, /const DISABLED_MARKERS/);
+  assert.match(verifier, /const PLAYABLE_PATTERNS/);
+
+  // Tri-state: only positive refusal evidence blocks, anything unrecognised is
+  // reported and left alone.
+  assert.match(verifier, /return \{ state: "blocked"/);
+  assert.match(verifier, /return \{ state: "unknown"/);
+
+  // Writing is opt-in and abandoned when too much of the sample is classified as
+  // blocked, which is what a wrong marker looks like.
+  assert.match(verifier, /const write = options\.write === true/);
+  assert.match(verifier, /blockRatio > maxBlockRatio/);
+  assert.match(verifier, /Refusing to write/);
+  assert.match(verifier, /Dry run\. Re-run with --write/);
+
+  assert.match(packageJson, /"pornhub:embeds:verify"/);
+  assert.match(packageJson, /"pornhub:embeds:block"/);
+});
+
+test("auto-advances the popular hero without trapping motion-sensitive or paused users", async () => {
+  const [hero, home, chrome, styles] = await Promise.all([
+    source("components/home/popular-hero.tsx"),
+    source("app/page.tsx"),
+    source("components/site-chrome.tsx"),
+    source("app/globals.css"),
+  ]);
+
+  assert.match(home, /import \{ PopularHero \}/);
+  assert.doesNotMatch(home, /PopularNow/);
+  assert.doesNotMatch(styles, /popular-now/);
+
+  // Auto-advance is a smooth scrollTo over a native scroll-snap track, so swipe
+  // and momentum stay native rather than being reimplemented.
+  assert.match(hero, /const AUTO_ADVANCE_MS = 5_500/);
+  assert.match(hero, /behavior: instant \|\| reducedMotion\(\) \? "instant" : "smooth"/);
+
+  // scroll-snap-stop:always would forbid passing intermediate snap points, which
+  // blocks the wrap back to the first slide, and hover must only pause for a mouse
+  // because touch fires pointerenter without a matching pointerleave.
+  assert.doesNotMatch(styles, /\.popular-hero-slide \{[^}]*scroll-snap-stop/);
+  assert.match(hero, /goTo\(next, next === 0\)/);
+  assert.match(hero, /event\.pointerType === "mouse"/);
+  assert.match(styles, /\.popular-hero-viewport \{[^}]*scroll-snap-type:x mandatory/);
+  assert.match(styles, /\.popular-hero-dot\.active/);
+
+  // Mobile keeps the exact 16:9 source ratio and stays horizontal, never portrait.
+  assert.match(styles, /\.popular-hero-slide \{ height:auto; aspect-ratio:16 \/ 9; \}/);
+  assert.doesNotMatch(styles, /aspect-ratio:4 \/ 5/);
+  assert.match(styles, /--popular-hero-height:max\(240px,calc\(75vh - var\(--popular-hero-chrome\)\)\)/);
+  assert.match(styles, /\.popular-hero-slide \{ width:100%; height:var\(--popular-hero-height\)/);
+  assert.doesNotMatch(styles, /popular-hero-toggle/);
+
+  // No pause button, so auto-advance must still stop for reduced motion, pointer
+  // and keyboard interaction, and background tabs.
+  assert.doesNotMatch(hero, /Pause|paused/);
+  assert.match(hero, /interacting \|\| reducedMotion\(\)/);
+  assert.match(hero, /prefers-reduced-motion: reduce/);
+  assert.match(hero, /if \(document\.hidden\) return;/);
+  assert.match(hero, /onPointerDown=\{\(\) => setInteracting\(true\)\}/);
+  assert.match(hero, /onFocusCapture=\{\(\) => setInteracting\(true\)\}/);
+  assert.match(hero, /aria-roledescription="carousel"/);
+  assert.match(hero, /aria-roledescription="slide"/);
+
+  // Slide calls to action replace the removed header links.
+  assert.match(hero, /href=\{`\/swipe-videos#\$\{video\.slug\}`\}>.*Swipe videos<\/Link>/);
+  assert.match(hero, /href="\/most-popular">Open in popular page/);
+  assert.doesNotMatch(hero, /View popular scenes|Watch scene|Open in swipe videos/);
+
+  // Slide headings sit under the section h2, which sits under the homepage h1.
+  assert.match(hero, /<h2 id="popular-hero-title">/);
+  assert.match(hero, /<h3>\{video\.sceneTitle\}<\/h3>/);
+
+  // Source viewkeys are alphanumeric, so keys and Video.id must not go through
+  // Number() on them.
+  assert.match(hero, /key=\{video\.slug\}/);
+  assert.doesNotMatch(hero, /key=\{video\.id\}/);
+
+  assert.match(chrome, /className="sidebar-home-link" href="\/"/);
+  assert.match(styles, /\.sidebar-home-link \{[^}]*border-radius:var\(--control-radius\)/);
+});
+
+test("gives every boxed surface a shared corner radius token", async () => {
+  const styles = await source("app/globals.css");
+
+  for (const token of ["--card-radius", "--control-radius", "--panel-radius", "--inner-radius", "--pill-radius"]) {
+    assert.match(styles, new RegExp(`${token}:`), `${token} should be declared`);
+  }
+
+  // Every boxed surface reads a token instead of a one-off value, so the whole site
+  // shares one radius vocabulary.
+  const tokenised = [
+    ["controls", ["\\.browse-trigger", "\\.mobile-search-trigger", "\\.catalog-filters", "\\.select-menu-trigger", "\\.catalog-navigation > section", "\\.status-page a, \\.status-page button", "\\.home-list-more-button"]],
+    ["panels", ["\\.search-popover", "\\.select-menu-popover", "\\.report-modal", "\\.popular-hero-viewport"]],
+    ["chips", ["\\.drawer-tag-links a", "\\.sidebar-category-links a", "\\.adult-category-strip > div:last-child a", "\\.reels-chrome-link"]],
+    ["tiles", ["\\.catalog-navigation-icon", "\\.sidebar-home-icon", "\\.browse-drawer > nav > a > span", "\\.search-result > img"]],
+    ["cards", ["\\.video-thumb", "\\.home-rail-media", "\\.player-frame", "\\.adult-category-grid > a", "\\.collection-link-grid > a"]],
+  ];
+  for (const [group, selectors] of tokenised) {
+    for (const selector of selectors) {
+      assert.match(styles, new RegExp(`${selector} \\{[^}]*border-radius:\\s*var\\(--`), `${selector} (${group}) should use a radius token`);
+    }
+  }
+
+  // The drawer is flush to the left edge and the navigation panel is clipped by its
+  // rounded parent, so those stay deliberate rather than uniform.
+  assert.match(styles, /\.browse-drawer \{[^}]*border-radius:0 var\(--panel-radius\) var\(--panel-radius\) 0/);
+  assert.match(styles, /\.catalog-navigation > section \{[^}]*overflow:hidden/);
+});
+
+test("scopes search from the header dropdown through to the advanced search page", async () => {
+  const [scopes, api, live, page, tabs, repository, selectMenu, styles] = await Promise.all([
+    source("lib/search-scope.ts"),
+    source("app/api/search/route.ts"),
+    source("components/search/live-search.tsx"),
+    source("app/search/page.tsx"),
+    source("components/search/search-scope-tabs.tsx"),
+    source("lib/catalog/repository.ts"),
+    source("components/ui/select-menu.tsx"),
+    source("app/globals.css"),
+  ]);
+
+  // One scope list drives the header dropdown, the API and the results page.
+  for (const scope of ["all", "celebrity", "movies", "tv-shows", "porn"]) {
+    assert.match(scopes, new RegExp(`value: "${scope}"`), `${scope} scope should exist`);
+  }
+  assert.match(scopes, /export function searchScope\(value: string \| string\[\] \| undefined\): SearchScopeDefinition/);
+
+  // The header keeps the accessible dropdown rather than a native select, and the
+  // chosen scope reaches both the suggestion request and the results link.
+  assert.doesNotMatch(live, /<select\b/i);
+  assert.match(live, /<SelectMenu\b/);
+  assert.match(live, /name="scope"/);
+  assert.match(live, /onValueChange=\{setScope\}/);
+  assert.match(live, /\/api\/search\?q=\$\{encodeURIComponent\(query\.trim\(\)\)\}&scope=/);
+  assert.match(live, /href=\{resultsHref\}/);
+  assert.match(selectMenu, /onValueChange\?\.\(value\)/);
+  assert.match(styles, /\.select-menu-scope \.select-menu-trigger/);
+
+  // Suggestions are narrowed by kind and group, so a scope cannot leak the wrong
+  // kind of result.
+  assert.match(api, /parseSearchScope/);
+  assert.match(repository, /searchCatalog\(query: string, limitPerGroup = 5, scope: SearchScope = "all"\)/);
+  assert.match(repository, /kind: item\.type === "tv_show" \? "tv_show" : "movie"/);
+  assert.match(repository, /kind: "adult" as const/);
+  assert.match(repository, /definition\.kinds\.includes\(item\.kind\)/);
+  assert.match(repository, /definition\.groups\.includes\(group\)/);
+
+  // The results page is a real advanced search: scope plus the shared filter bar,
+  // with crawlable scope links instead of a client-only control.
+  assert.match(page, /Advanced search/);
+  assert.match(page, /\.\.\.definition\.query, \.\.\.filterQueryOptions\(filters\)/);
+  assert.match(page, /<SearchScopeTabs term=\{term\} scope=\{scope\} \/>/);
+  assert.match(page, /hideType: Boolean\(definition\.query\.type\)/);
+  assert.match(page, /hideYear: definition\.query\.catalog === "porn"/);
+  assert.match(page, /robots: \{ index: false, follow: true \}/);
+  assert.match(tabs, /aria-current=\{item\.value === scope \? "page" : undefined\}/);
+  assert.match(styles, /\.search-scope-tabs a\.active/);
 });
 
 test("generates page-specific SEO without indexing internal search results", async () => {
@@ -311,6 +549,13 @@ test("generates page-specific SEO without indexing internal search results", asy
   assert.match(templates, /Sex Scene/);
   assert.match(templates, /Nude Scene/);
   assert.match(searchPage, /index: false/);
+
+  // The results page must stay crawlable so its noindex is actually read. Blocking it
+  // in robots.txt while the footer and 404 link to it produces "Blocked by robots.txt"
+  // and leaves the noindex unseen.
+  const robots = await source("app/robots.ts");
+  assert.doesNotMatch(robots, /"\/search"/);
+  assert.match(robots, /disallow: \["\/api\/", "\/admin\/"\]/);
   assert.match(watchPage, /watchSeo\(video\)/);
   assert.match(layout, /GOOGLE_SITE_VERIFICATION/);
   assert.match(layout, /BING_SITE_VERIFICATION/);
@@ -533,8 +778,17 @@ test("keeps vertical swipe videos isolated, bounded, and VAST-enabled", async ()
   assert.match(page, /NEXT_PUBLIC_EXOCLICK_VERTICAL_VAST_TAG_URL/);
   assert.match(feed, /const AD_INTERVAL = 3/);
   assert.match(feed, /const pendingAd = items\.findIndex/);
-  assert.match(feed, /root\.scrollTo\(\{ top: adSlide\.offsetTop, behavior: "auto" \}\)/);
   assert.match(feed, /index === activeIndex && <VerticalVastSlide/);
+
+  // Jumps must be instant. scrollTo({ behavior: "auto" }) inherits the smooth
+  // computed scroll-behavior, so direct scrollTop assignment is used instead, and
+  // the ad slide is pinned before paint so it never shows halfway scrolled.
+  assert.match(feed, /root\.scrollTop = slide\.offsetTop/);
+  assert.equal(feed.match(/root\.scrollTo\(/g).length, 1);
+  assert.match(feed, /root\.scrollTo\(\{ top: slide\.offsetTop, behavior: "smooth" \}\)/);
+  assert.match(feed, /useLayoutEffect\(\(\) => \{\s*if \(!adActive\) return;/);
+  assert.match(feed, /pinToIndex\(pendingAd\)/);
+  assert.match(feed, /window\.addEventListener\("orientationchange", repin\)/);
   assert.match(feed, /key=\{`reels-instant-\$\{activeIndex\}`\} placement="catalog-instant"/);
   assert.match(feed, /Math\.abs\(index - activeIndex\) <= 1/);
   assert.match(feed, /reels-feed-locked/);
@@ -544,12 +798,27 @@ test("keeps vertical swipe videos isolated, bounded, and VAST-enabled", async ()
   assert.match(feed, /className="reel-share"/);
   assert.match(vast, /import\("@dailymotion\/vast-client"\)/);
   assert.match(vast, /trackImpression\(\)/);
-  assert.match(vast, /Math\.ceil\(vastSkipDelay\) : 10/);
-  assert.match(vast, /skipSeconds \?\? 10/);
+  assert.match(vast, /Math\.ceil\(vastSkipDelay\) : FALLBACK_SKIP_SECONDS/);
   assert.doesNotMatch(vast, /VERTICAL_AD_CAP_MS|sessionStorage/);
   assert.match(vast, /onUnavailable\(checkpoint\);/);
+
+  // The feed is scroll-locked on an ad slide, so the slide always has an exit:
+  // a mount watchdog, plus a countdown that never starts from a null state.
+  assert.match(vast, /const AD_LOAD_BUDGET_MS = 6_000/);
+  assert.match(vast, /if \(alive && !impressedRef\.current\) onUnavailable\(checkpoint\);/);
+  assert.match(vast, /useState\(FALLBACK_SKIP_SECONDS\)/);
+  assert.match(vast, /disabled=\{skipSeconds > 0\}/);
+  assert.doesNotMatch(vast, /skipSeconds === null/);
   assert.doesNotMatch(page, /<SiteHeader/);
-  assert.match(home, /<PopularNow videos=\{popular\} \/>/);
+
+  // Indexable page, so it needs a heading even though the chrome is hidden.
+  assert.match(page, /<h1 className="sr-only">Popular celebrity swipe videos<\/h1>/);
+
+  // The reels route hides the site chrome, so it carries its own way back out.
+  assert.match(feed, /className="reels-chrome-link" href="\/"/);
+  assert.match(feed, /aria-label="Leave swipe videos"/);
+
+  assert.match(home, /<PopularHero videos=\{popular\} \/>/);
   assert.match(home, /<HomeDiscovery latest=\{result\.items\} preview=\{preview!\} \/>/);
   assert.match(repository, /export async function getPopularVideos\(limit = 100\)/);
   assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_VERTICAL_VAST_TAG_URL=/);

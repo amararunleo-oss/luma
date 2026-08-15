@@ -3,6 +3,7 @@ import { getD1Database } from "@/lib/cloudflare/d1-http";
 import { catalogCacheKey, withCatalogCache, withLocalCatalogCache } from "@/lib/cache/upstash";
 import { ADULT_CATEGORIES, AGE_RISK_TERMS, adultCategoryMatchTerms } from "@/lib/adult-taxonomy";
 import { PORNHUB_TEST_VIDEO, isPornhubTestVideo } from "@/lib/pornhub-test-video";
+import { searchScope, type SearchScope, type SearchSuggestionKind } from "@/lib/search-scope";
 import { getLocalPornhubRelated, getLocalPornhubVideo, getLocalPornhubVideos, listLocalPornhubVideos, localPornhubCategoryCounts, searchLocalPornhubVideos } from "@/lib/pornhub-local-catalog";
 
 export const DEFAULT_PAGE_SIZE = 25;
@@ -82,6 +83,8 @@ export type SearchSuggestion = {
   meta: string;
   group: "videos" | "actresses" | "movies" | "tvShows" | "categories";
   image?: string;
+  /** Set on video suggestions so search scopes can narrow them exactly. */
+  kind?: SearchSuggestionKind;
 };
 export type SearchSuggestions = {
   query: string;
@@ -771,7 +774,7 @@ async function searchCatalogUncached(query: string, limitPerGroup = 5): Promise<
       return {
         value: {
           query: term,
-          videos: (videoResult.results ?? []).map((item) => ({ id: `video-${item.id}`, label: item.label, href: `/watch/${item.slug}`, meta: `${item.year ?? ""} · ${item.type === "tv_show" ? "TV Show" : "Movie"}`, group: "videos", image: thumbnailUrl(item.thumbnailKey) })),
+          videos: (videoResult.results ?? []).map((item) => ({ id: `video-${item.id}`, label: item.label, href: `/watch/${item.slug}`, meta: `${item.year ?? ""} · ${item.type === "tv_show" ? "TV Show" : "Movie"}`, group: "videos", image: thumbnailUrl(item.thumbnailKey), kind: item.type === "tv_show" ? "tv_show" : "movie" })),
           actresses: (actressResult.results ?? []).map((item) => ({ id: `actress-${item.id}`, label: item.label, href: `/actress/${item.slug}`, meta: "Actress", group: "actresses" })),
           movies: (movieResult.results ?? []).map((item) => ({ id: `movie-${item.id}`, label: item.label, href: `/movie/title/${item.slug}`, meta: "Movie", group: "movies" })),
           tvShows: (tvResult.results ?? []).map((item) => ({ id: `tv-${item.id}`, label: item.label, href: `/tv-show/title/${item.slug}`, meta: "TV Show", group: "tvShows" })),
@@ -788,7 +791,7 @@ async function searchCatalogUncached(query: string, limitPerGroup = 5): Promise<
   return {
     value: {
       query: term,
-      videos: matches.slice(0, limit).map((video) => ({ id: `video-${video.id}`, label: video.sceneTitle, href: `/watch/${video.slug}`, meta: `${video.year} · ${video.type}`, group: "videos", image: video.thumbnail })),
+      videos: matches.slice(0, limit).map((video) => ({ id: `video-${video.id}`, label: video.sceneTitle, href: `/watch/${video.slug}`, meta: `${video.year} · ${video.type}`, group: "videos", image: video.thumbnail, kind: video.type === "TV Show" ? "tv_show" : "movie" })),
       actresses: actresses.map((item) => ({ id: `actress-${item.slug}`, label: item.name, href: `/actress/${item.slug}`, meta: "Actress", group: "actresses" })),
       movies: movieEntries.map((item) => ({ id: `movie-${item.slug}`, label: item.name, href: `/movie/title/${item.slug}`, meta: "Movie", group: "movies" })),
       tvShows: tvEntries.map((item) => ({ id: `tv-${item.slug}`, label: item.name, href: `/tv-show/title/${item.slug}`, meta: "TV Show", group: "tvShows" })),
@@ -806,19 +809,37 @@ async function searchCatalogRemoteCached(query: string, limitPerGroup = 5): Prom
   return result.value;
 }
 
-export async function searchCatalog(query: string, limitPerGroup = 5): Promise<SearchSuggestions> {
+export async function searchCatalog(query: string, limitPerGroup = 5, scope: SearchScope = "all"): Promise<SearchSuggestions> {
   const term = searchTerm(query);
   const limit = Math.max(1, Math.min(8, limitPerGroup));
-  const [remote, localVideos] = await Promise.all([searchCatalogRemoteCached(term, limit), searchLocalPornhubVideos(term, limit)]);
+  const definition = searchScope(scope);
+  const wantsAdult = definition.kinds.length === 0 || definition.kinds.includes("adult");
+  const wantsCelebrity = definition.kinds.length === 0 || definition.kinds.some((kind) => kind !== "adult");
+  const [remote, localVideos] = await Promise.all([
+    wantsCelebrity ? searchCatalogRemoteCached(term, limit) : Promise.resolve(emptySearch(term)),
+    wantsAdult ? searchLocalPornhubVideos(term, limit) : Promise.resolve([]),
+  ]);
   const normalizedTerm = slugify(term);
   const categories = term.length < 2 ? [] : ADULT_CATEGORIES
     .filter((category) => [slugify(category.name), ...adultCategoryMatchTerms(category)].some((value) => value.includes(normalizedTerm) || normalizedTerm.includes(value)))
     .slice(0, limit)
     .map((category) => ({ id: `category-${category.slug}`, label: category.name, href: `/porn-category/${category.slug}`, meta: "Adult category", group: "categories" as const }));
-  const localSuggestions = localVideos.map((video) => ({ id: `porn-video-${video.id}`, label: video.sceneTitle, href: `/watch/${video.slug}`, meta: `${video.year} · Adult video`, group: "videos" as const, image: video.thumbnail }));
+  const localSuggestions = localVideos.map((video) => ({ id: `porn-video-${video.id}`, label: video.sceneTitle, href: `/watch/${video.slug}`, meta: `${video.year} · Adult video`, group: "videos" as const, image: video.thumbnail, kind: "adult" as const }));
   const videos = new Map(remote.videos.map((item) => [item.href, item]));
   localSuggestions.forEach((item) => videos.set(item.href, item));
-  return { ...remote, query: term, videos: [...videos.values()].slice(0, limit), categories };
+
+  // Scopes narrow by suggestion kind and by group, so "Movies" cannot return a TV
+  // scene and "Porn videos" cannot return an actress page.
+  const keepKind = (item: SearchSuggestion) => definition.kinds.length === 0 || !item.kind || definition.kinds.includes(item.kind);
+  const keepGroup = (group: SearchSuggestion["group"]) => definition.groups.includes(group);
+  return {
+    query: term,
+    videos: keepGroup("videos") ? [...videos.values()].filter(keepKind).slice(0, limit) : [],
+    actresses: keepGroup("actresses") ? remote.actresses : [],
+    movies: keepGroup("movies") ? remote.movies : [],
+    tvShows: keepGroup("tvShows") ? remote.tvShows : [],
+    categories: keepGroup("categories") ? categories : [],
+  };
 }
 
 export async function getAdultCategoryCounts() {

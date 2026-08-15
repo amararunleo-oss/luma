@@ -25,6 +25,11 @@ type VastAd = {
   creatives?: VastCreative[];
 };
 
+// The feed is scroll-locked while an ad slide is active, so the slide must always
+// be escapable. Nothing has started playing within this budget means give up.
+const AD_LOAD_BUDGET_MS = 6_000;
+const FALLBACK_SKIP_SECONDS = 10;
+
 function selectMedia(creative: VastCreative) {
   return [...(creative.mediaFiles ?? [])]
     .filter((media) => media.fileURL && (!media.mimeType || media.mimeType.startsWith("video/")))
@@ -49,17 +54,21 @@ export function VerticalVastSlide({ checkpoint, vastTag, onUnavailable }: { chec
   const [adDescription, setAdDescription] = useState("Swipe to continue");
   const [muted, setMuted] = useState(true);
   const [needsPlay, setNeedsPlay] = useState(false);
-  const [skipSeconds, setSkipSeconds] = useState<number | null>(null);
+  const [skipSeconds, setSkipSeconds] = useState(FALLBACK_SKIP_SECONDS);
 
   useEffect(() => {
     let alive = true;
     let tracker: VASTTracker | null = null;
-    const unavailable = window.setTimeout(() => {
-      if (!vastTag) onUnavailable(checkpoint);
-    }, 80);
+    // VAST requests carry a per-request timeout and can chain up to seven
+    // wrappers, so the parse alone has no bounded total cost. This watchdog
+    // bounds the whole slide instead.
+    const watchdog = window.setTimeout(() => {
+      if (alive && !impressedRef.current) onUnavailable(checkpoint);
+    }, AD_LOAD_BUDGET_MS);
 
-    if (vastTag) {
-      window.clearTimeout(unavailable);
+    if (!vastTag) {
+      onUnavailable(checkpoint);
+    } else {
       const loadAd = async () => {
         try {
           const { VASTClient, VASTTracker: Tracker } = await import("@dailymotion/vast-client");
@@ -80,8 +89,9 @@ export function VerticalVastSlide({ checkpoint, vastTag, onUnavailable }: { chec
           trackerRef.current = tracker;
           const vastSkipDelay = Number(tracker.skipDelay);
           // ExoClick's VAST skipDelay is authoritative. Configure this zone to
-          // 10 seconds in the publisher dashboard; use 10 only as a safe fallback.
-          setSkipSeconds(Number.isFinite(vastSkipDelay) && vastSkipDelay >= 0 ? Math.ceil(vastSkipDelay) : 10);
+          // 10 seconds in the publisher dashboard; the fallback only applies when
+          // the response omits a delay.
+          setSkipSeconds(Number.isFinite(vastSkipDelay) && vastSkipDelay >= 0 ? Math.ceil(vastSkipDelay) : FALLBACK_SKIP_SECONDS);
           setAdTitle(String(ad.adTitle || ad.title || "Sponsored video"));
           setAdDescription(String(ad.description || "Swipe to continue"));
           setMediaUrl(media.fileURL);
@@ -94,17 +104,18 @@ export function VerticalVastSlide({ checkpoint, vastTag, onUnavailable }: { chec
 
     return () => {
       alive = false;
-      window.clearTimeout(unavailable);
+      window.clearTimeout(watchdog);
       if (tracker && impressedRef.current && !completedRef.current) tracker.close();
       trackerRef.current = null;
     };
   }, [checkpoint, onUnavailable, vastTag]);
 
+  // Counts down from mount rather than from first frame, so a slow VAST parse
+  // cannot leave the skip button disabled while the feed is locked.
   useEffect(() => {
-    if (skipSeconds === null || skipSeconds <= 0 || !mediaUrl) return;
-    const timer = window.setInterval(() => setSkipSeconds((current) => current === null ? null : Math.max(0, current - 1)), 1_000);
+    const timer = window.setInterval(() => setSkipSeconds((current) => Math.max(0, current - 1)), 1_000);
     return () => window.clearInterval(timer);
-  }, [mediaUrl, skipSeconds]);
+  }, []);
 
   const startPlayback = () => {
     const video = videoRef.current;
@@ -184,8 +195,8 @@ export function VerticalVastSlide({ checkpoint, vastTag, onUnavailable }: { chec
       <button className="vertical-vast-mute" type="button" onClick={toggleMuted} aria-label={muted ? "Unmute advertisement" : "Mute advertisement"}>
         {muted ? <VolumeX size={17} /> : <Volume2 size={17} />}
       </button>
-      <button className="vertical-vast-skip" type="button" disabled={skipSeconds === null || skipSeconds > 0} onClick={skipAdvert}>
-        {skipSeconds === null || skipSeconds > 0 ? `Skip in ${skipSeconds ?? 10}` : <>Skip ad<SkipForward size={14} aria-hidden="true" /></>}
+      <button className="vertical-vast-skip" type="button" disabled={skipSeconds > 0} onClick={skipAdvert}>
+        {skipSeconds > 0 ? `Skip in ${skipSeconds}` : <>Skip ad<SkipForward size={14} aria-hidden="true" /></>}
       </button>
       <div className="vertical-vast-copy">
         <span>Sponsored</span>
