@@ -382,6 +382,12 @@ img { max-width: 100%; }
 .watch-outstream-break { width:min(100%,760px); margin:26px auto 0; }
 .watch-outstream-break .ad-slot { margin-bottom:0; }
 .player-frame { aspect-ratio:16 / 9; width:100%; max-width:760px; margin:0; position:relative; overflow:hidden; border:0; border-radius:var(--card-radius); background:#000; box-shadow:0 18px 46px rgba(31,18,24,.14),0 2px 8px rgba(31,18,24,.08); isolation:isolate; }
+/* Recovery affordance when the embed never fires load, so a dead player does not
+   force a full page reload. */
+.player-stalled { position:absolute; z-index:4; inset:auto 0 0 0; padding:13px 15px; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; background:linear-gradient(180deg,rgba(9,6,8,0),rgba(9,6,8,.9)); color:#fff; }
+.player-stalled p { margin:0; font-size:10px; }
+.player-stalled button { min-height:34px; padding:0 12px; display:flex; align-items:center; gap:6px; border:1px solid rgba(255,255,255,.28); border-radius:var(--control-radius); background:rgba(255,255,255,.1); color:#fff; font-size:9.5px; font-weight:700; cursor:pointer; }
+.player-stalled button:hover { border-color:rgba(255,255,255,.55); background:rgba(255,255,255,.18); }
 .player-poster > img { width:100%; height:100%; display:block; object-fit:cover; filter:brightness(.7) saturate(.86); transform:scale(1.002); }
 .player-poster::after { content:""; position:absolute; inset:0; background:linear-gradient(180deg,rgba(10,5,8,.08) 30%,rgba(10,5,8,.68) 100%),linear-gradient(100deg,rgba(10,5,8,.16),transparent 60%); }
 .player-poster > button { position:absolute; z-index:2; inset:0; display:grid; place-content:center; justify-items:center; gap:11px; border:0; background:transparent; color:white; cursor:pointer; }

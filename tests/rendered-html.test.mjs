@@ -789,6 +789,13 @@ test("keeps vertical swipe videos isolated, bounded, and VAST-enabled", async ()
   assert.match(feed, /useLayoutEffect\(\(\) => \{\s*if \(!adActive\) return;/);
   assert.match(feed, /pinToIndex\(pendingAd\)/);
   assert.match(feed, /window\.addEventListener\("orientationchange", repin\)/);
+
+  // A single pin loses to the coasting gesture that reached the ad, so the position
+  // is re-asserted across frames and on every scroll while the ad is locked in.
+  assert.match(feed, /root\.addEventListener\("scroll", enforce/);
+  assert.match(feed, /if \(Math\.abs\(root\.scrollTop - top\) > 1\) root\.scrollTop = top;/);
+  assert.match(feed, /if \(frames < 40\) frame = window\.requestAnimationFrame\(settle\)/);
+  assert.match(feed, /viewport\?\.addEventListener\("resize", repin\)/);
   assert.match(feed, /key=\{`reels-instant-\$\{activeIndex\}`\} placement="catalog-instant"/);
   assert.match(feed, /Math\.abs\(index - activeIndex\) <= 1/);
   assert.match(feed, /reels-feed-locked/);
