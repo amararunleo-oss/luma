@@ -350,6 +350,25 @@ test("suppresses non-embeddable adult videos everywhere and paginates the full a
   assert.match(localCatalog, /blocked\.slugs\.has\(record\.slug\)/);
   assert.match(previewScript, /blocked\.ids\.has/);
 
+  // D1 and the Redis catalog chunks are separate sources from the local JSONL, so the
+  // blocklist is enforced on every read path rather than only in the file reader.
+  assert.match(reader, /export function isBlockedSlug/);
+  const repo = await source("lib/catalog/repository.ts");
+  assert.match(repo, /export async function getVideoBySlug\(slug: string\) \{\s*if \(isBlockedSlug\(await blocklist\(\), slug\)\) return undefined;/);
+  assert.match(repo, /async function withoutBlocked\(page: CatalogPage\)/);
+  assert.match(repo, /return withoutBlocked\(await listVideosRemoteCached\(options\)\)/);
+  assert.match(repo, /return related\.filter\(\(item\) => !isBlockedSlug\(list, item\.slug\)\)/);
+  assert.match(repo, /const keepUnblocked = /);
+  assert.match(repo, /getCatalogSitemapChunkUnfiltered/);
+  assert.match(repo, /getVideoSitemapChunkUnfiltered/);
+
+  // A full pass over the catalog is long, so it checkpoints and resumes.
+  assert.match(previewScript, /blocked\.slugs\.has/);
+  const verifier = await source("scripts/pornhub/verify-embeds.mjs");
+  assert.match(verifier, /embed-verification\.checkpoint\.json/);
+  assert.match(verifier, /const resume = options\["no-resume"\] !== true/);
+  assert.match(verifier, /slug: item\.slug,/);
+
   // The adult listings page through the whole catalog instead of 2024 onwards.
   assert.doesNotMatch(listing, /minYear: 2024/);
   assert.doesNotMatch(hub, /minYear: 2024/);

@@ -7,6 +7,19 @@ type BlocklistEntry = { sourceId?: string; slug?: string; reason?: string; added
 type BlocklistFile = { blocked?: BlocklistEntry[] };
 export type PornhubBlocklist = { ids: ReadonlySet<string>; slugs: ReadonlySet<string>; size: number };
 
+// Slugs always end with the source viewkey, so one id match covers every layer:
+// the local JSONL, the Redis catalog chunks and the D1 rows, which only share the
+// slug. Kept O(1) so it can sit on hot read paths.
+export function isBlockedSlug(list: PornhubBlocklist, slug: string) {
+  if (!list.size || !slug) return false;
+  if (list.slugs.has(slug)) return true;
+  return list.ids.has(slug.slice(slug.lastIndexOf("-") + 1));
+}
+
+export async function blockedPornhubSlug(slug: string) {
+  return isBlockedSlug(await getPornhubBlocklist(), slug);
+}
+
 const empty: PornhubBlocklist = { ids: new Set<string>(), slugs: new Set<string>(), size: 0 };
 
 function normalize(value: unknown) {

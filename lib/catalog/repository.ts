@@ -4,6 +4,7 @@ import { catalogCacheKey, withCatalogCache, withLocalCatalogCache } from "@/lib/
 import { ADULT_CATEGORIES, AGE_RISK_TERMS, adultCategoryMatchTerms } from "@/lib/adult-taxonomy";
 import { PORNHUB_TEST_VIDEO, isPornhubTestVideo } from "@/lib/pornhub-test-video";
 import { searchScope, type SearchScope, type SearchSuggestionKind } from "@/lib/search-scope";
+import { getPornhubBlocklist, isBlockedSlug } from "@/lib/pornhub-blocklist";
 import { getLocalPornhubRelated, getLocalPornhubVideo, getLocalPornhubVideos, listLocalPornhubVideos, localPornhubCategoryCounts, searchLocalPornhubVideos } from "@/lib/pornhub-local-catalog";
 
 export const DEFAULT_PAGE_SIZE = 25;
@@ -396,6 +397,15 @@ async function listVideosRemoteCached(options: QueryOptions = {}): Promise<Catal
   });
 }
 
+async function withoutBlocked(page: CatalogPage): Promise<CatalogPage> {
+  const list = await blocklist();
+  if (!list.size) return page;
+  const items = page.items.filter((item) => !isBlockedSlug(list, item.slug));
+  // total is left as reported. Correcting it per page would make the count disagree
+  // with the pagination the database produced.
+  return items.length === page.items.length ? page : { ...page, items };
+}
+
 export async function listVideos(options: QueryOptions = {}): Promise<CatalogPage> {
   const localOptions = {
     page: options.page,
@@ -409,16 +419,16 @@ export async function listVideos(options: QueryOptions = {}): Promise<CatalogPag
     duration: options.duration,
     minRating: options.minRating,
   } as const;
-  if (options.catalog === "porn") return (await listLocalPornhubVideos(localOptions)) ?? listVideosRemoteCached(options);
+  if (options.catalog === "porn") return withoutBlocked((await listLocalPornhubVideos(localOptions)) ?? await listVideosRemoteCached(options));
   if (!options.catalog && options.search?.trim()) {
     const [remote, local] = await Promise.all([listVideosRemoteCached(options), listLocalPornhubVideos(localOptions)]);
     if (!local?.items.length) return remote;
     const pageSize = Math.max(1, Math.min(48, options.pageSize ?? DEFAULT_PAGE_SIZE));
     const merged = new Map<string, Video>();
     [...remote.items, ...local.items].sort((a, b) => (b.views ?? 0) - (a.views ?? 0) || b.rating - a.rating).forEach((video) => merged.set(`${video.source ?? "videocelebs"}:${video.id}`, video));
-    return { items: [...merged.values()].slice(0, pageSize), total: remote.total + local.total, page: remote.page, pageSize, database: remote.database };
+    return withoutBlocked({ items: [...merged.values()].slice(0, pageSize), total: remote.total + local.total, page: remote.page, pageSize, database: remote.database });
   }
-  return listVideosRemoteCached(options);
+  return withoutBlocked(await listVideosRemoteCached(options));
 }
 
 export async function getPopularVideos(limit = 100): Promise<Video[]> {
@@ -475,7 +485,15 @@ async function getVideoBySlugRemoteCached(slug: string) {
   return result.value ?? undefined;
 }
 
+// The blocklist is enforced at every read, not only in the local JSONL reader. D1
+// and the Redis catalog chunks are separate sources and would otherwise still serve
+// a blocked watch page, related rail, suggestion or sitemap entry.
+async function blocklist() {
+  return getPornhubBlocklist();
+}
+
 export async function getVideoBySlug(slug: string) {
+  if (isBlockedSlug(await blocklist(), slug)) return undefined;
   return (await getLocalPornhubVideo(slug)) ?? getVideoBySlugRemoteCached(slug);
 }
 
@@ -565,7 +583,11 @@ async function getRelatedVideosRemoteCached(video: Video, limit = 8): Promise<Vi
 }
 
 export async function getRelatedVideos(video: Video, limit = 8): Promise<Video[]> {
-  return (await getLocalPornhubRelated(video, limit)) ?? getRelatedVideosRemoteCached(video, Math.max(1, Math.min(12, limit)));
+  const [list, related] = await Promise.all([
+    blocklist(),
+    (async () => (await getLocalPornhubRelated(video, limit)) ?? getRelatedVideosRemoteCached(video, Math.max(1, Math.min(12, limit))))(),
+  ]);
+  return related.filter((item) => !isBlockedSlug(list, item.slug));
 }
 
 function seedWorks(type: VideoType): DirectoryEntry[] {
@@ -832,9 +854,11 @@ export async function searchCatalog(query: string, limitPerGroup = 5, scope: Sea
   // scene and "Porn videos" cannot return an actress page.
   const keepKind = (item: SearchSuggestion) => definition.kinds.length === 0 || !item.kind || definition.kinds.includes(item.kind);
   const keepGroup = (group: SearchSuggestion["group"]) => definition.groups.includes(group);
+  const list = await blocklist();
+  const keepUnblocked = (item: SearchSuggestion) => !isBlockedSlug(list, item.href.replace("/watch/", ""));
   return {
     query: term,
-    videos: keepGroup("videos") ? [...videos.values()].filter(keepKind).slice(0, limit) : [],
+    videos: keepGroup("videos") ? [...videos.values()].filter(keepKind).filter(keepUnblocked).slice(0, limit) : [],
     actresses: keepGroup("actresses") ? remote.actresses : [],
     movies: keepGroup("movies") ? remote.movies : [],
     tvShows: keepGroup("tvShows") ? remote.tvShows : [],
@@ -916,6 +940,15 @@ export async function getCatalogSitemapCounts(): Promise<CatalogSitemapCounts> {
 }
 
 export async function getCatalogSitemapChunk(section: CatalogSitemapSection, offset: number, limit: number): Promise<CatalogSitemapEntry[]> {
+  const [entries, list] = await Promise.all([
+    getCatalogSitemapChunkUnfiltered(section, offset, limit),
+    blocklist(),
+  ]);
+  if (!list.size) return entries;
+  return entries.filter((entry) => !entry.path.startsWith("/watch/") || !isBlockedSlug(list, entry.path.slice("/watch/".length)));
+}
+
+async function getCatalogSitemapChunkUnfiltered(section: CatalogSitemapSection, offset: number, limit: number): Promise<CatalogSitemapEntry[]> {
   const safeOffset = Math.max(0, Math.floor(offset));
   const safeLimit = Math.min(10_000, Math.max(1, Math.floor(limit)));
   const db = database();
@@ -975,6 +1008,12 @@ function sitemapDate(value: string | null | undefined, year?: number | null) {
 }
 
 export async function getVideoSitemapChunk(offset: number, limit: number): Promise<VideoSitemapEntry[]> {
+  const [entries, list] = await Promise.all([getVideoSitemapChunkUnfiltered(offset, limit), blocklist()]);
+  if (!list.size) return entries;
+  return entries.filter((entry) => !isBlockedSlug(list, entry.path.replace("/watch/", "")));
+}
+
+async function getVideoSitemapChunkUnfiltered(offset: number, limit: number): Promise<VideoSitemapEntry[]> {
   const safeOffset = Math.max(0, Math.floor(offset));
   const safeLimit = Math.min(5_000, Math.max(1, Math.floor(limit)));
   const db = database();

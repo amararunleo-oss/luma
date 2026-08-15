@@ -98,17 +98,31 @@ async function fetchEmbed(url) {
   return { ok: false, status: 0, error: "unreachable", html: "" };
 }
 
-const records = (await readFile(input, "utf8"))
+// A full 10k pass takes a long time, so completed results are checkpointed and a
+// re-run skips them unless --no-resume is passed.
+const checkpointPath = path.resolve(options.checkpoint ?? "data/staging/pornhub/embed-verification.checkpoint.json");
+const resume = options["no-resume"] !== true;
+const previous = resume
+  ? await readFile(checkpointPath, "utf8").then((value) => JSON.parse(value).results ?? []).catch(() => [])
+  : [];
+const done = new Map(previous.map((item) => [String(item.sourceId), item]));
+
+const allRecords = (await readFile(input, "utf8"))
   .split(/\r?\n/)
   .filter(Boolean)
   .map((line) => JSON.parse(line))
-  .filter((record) => record.embedUrl)
+  .filter((record) => record.embedUrl);
+
+const records = allRecords
+  .filter((record) => !done.has(String(record.sourceId)))
   .slice(0, limit === Infinity ? undefined : limit);
 
-if (!records.length) throw new Error(`No records with an embedUrl in ${input}.`);
-console.log(`Checking ${records.length.toLocaleString("en-US")} embeds from ${input} with concurrency ${concurrency}.`);
+if (!allRecords.length) throw new Error(`No records with an embedUrl in ${input}.`);
+console.log(`${allRecords.length.toLocaleString("en-US")} embeds in ${input}.`);
+if (done.size) console.log(`Resuming: ${done.size.toLocaleString("en-US")} already checked, ${records.length.toLocaleString("en-US")} to go.`);
+else console.log(`Checking ${records.length.toLocaleString("en-US")} with concurrency ${concurrency}.`);
 
-const results = [];
+const results = [...done.values()];
 let cursor = 0;
 let samples = 0;
 
@@ -138,11 +152,17 @@ async function worker() {
       await mkdir(sampleDir, { recursive: true });
       await writeFile(path.join(sampleDir, `${outcome.state}-${record.sourceId}.html`), response.html, "utf8");
     }
-    if (results.length % 25 === 0) console.log(`  ${results.length.toLocaleString("en-US")}/${records.length.toLocaleString("en-US")} checked`);
+    if (results.length % 25 === 0) {
+      console.log(`  ${results.length.toLocaleString("en-US")}/${allRecords.length.toLocaleString("en-US")} checked`);
+      await mkdir(path.dirname(checkpointPath), { recursive: true });
+      await writeFile(checkpointPath, `${JSON.stringify({ checkedAt: new Date().toISOString(), input, results }, null, 0)}\n`, "utf8");
+    }
   }
 }
 
 await Promise.all(Array.from({ length: concurrency }, () => worker()));
+await mkdir(path.dirname(checkpointPath), { recursive: true });
+await writeFile(checkpointPath, `${JSON.stringify({ checkedAt: new Date().toISOString(), input, results }, null, 0)}\n`, "utf8");
 
 const counts = results.reduce((totals, item) => ({ ...totals, [item.state]: (totals[item.state] ?? 0) + 1 }), {});
 const blocked = results.filter((item) => item.state === "blocked");
@@ -199,6 +219,9 @@ if (!blocked.length) {
       .filter((item) => item.sourceId && !known.has(item.sourceId))
       .map((item) => ({
         sourceId: item.sourceId,
+        // Recorded so D1 and the Redis catalog chunks, which only share the slug, can
+        // be filtered by the same entry.
+        slug: item.slug,
         reason: "embed-disabled",
         addedAt: new Date().toISOString().slice(0, 10),
         note: `verify-embeds: ${item.evidence}`,
