@@ -5,6 +5,9 @@ import path from "node:path";
 
 export type PornhubPreviewItem = {
   id: string;
+  // Source viewkeys are alphanumeric, so a separate numeric id is carried for the
+  // places that need Video.id as a number.
+  numericId: number;
   slug: string;
   title: string;
   thumbnail: string;

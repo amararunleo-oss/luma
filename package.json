@@ -40,6 +40,8 @@
     "pornhub:preview": "node scripts/pornhub/build-home-preview.mjs",
     "pornhub:audit-categories": "node scripts/pornhub/audit-categories.mjs",
     "pornhub:benchmark": "node scripts/pornhub/select-catalog.mjs --max-rows 250000 --no-checkpoint --no-resume --benchmark --out data/staging/pornhub-benchmark",
+    "pornhub:embeds:verify": "node scripts/pornhub/verify-embeds.mjs",
+    "pornhub:embeds:block": "node scripts/pornhub/verify-embeds.mjs --write",
     "pornhub:video:index": "node --no-warnings scripts/pornhub/build-title-index.mjs",
     "pornhub:video:add": "node --no-warnings scripts/pornhub/add-single-video.mjs",
     "pornhub:video:publish": "node scripts/pornhub/publish-single-video.mjs",

@@ -6,7 +6,7 @@ import { SITE } from "@/lib/site";
 import { BrowseDrawer } from "@/components/navigation/browse-drawer";
 import { CatalogNavigation } from "@/components/navigation/catalog-navigation";
 import { ADULT_CATEGORIES } from "@/lib/adult-taxonomy";
-import { Film, FolderOpen, Info, ShieldCheck } from "lucide-react";
+import { Film, FolderOpen, Home, Info, ShieldCheck } from "lucide-react";
 
 export function SiteHeader() {
   return (
@@ -31,6 +31,10 @@ export async function Sidebar() {
       <div className="sidebar-scroll">
         <section className="sidebar-navigation-section">
           <h2>Browse</h2>
+          <Link className="sidebar-home-link" href="/">
+            <span className="sidebar-home-icon"><Home size={15} aria-hidden="true" /></span>
+            <span className="sidebar-home-copy"><strong>Home</strong><small>Popular and latest scenes</small></span>
+          </Link>
           <CatalogNavigation />
         </section>
         <section className="sidebar-adult-section">
@@ -56,8 +60,10 @@ export async function Sidebar() {
         </section>
         <section>
           <h2>Years</h2>
+          {/* Every year the catalog actually has, newest first. A hardcoded
+              slice(0, 18) previously cut the list off at 2009. */}
           <div className="year-list">
-            {years.slice(0, 18).map((item) => <Link href={`/year/${item.year}`} key={item.year}>{item.year}</Link>)}
+            {years.map((item) => <Link href={`/year/${item.year}`} key={item.year}>{item.year}</Link>)}
           </div>
         </section>
       </div>

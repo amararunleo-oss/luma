@@ -1,7 +1,14 @@
+import { Fragment } from "react";
+import { ArrowUpRight } from "lucide-react";
 import type { Video } from "@/lib/videos";
 import type { PornhubHomePreview, PornhubPreviewItem } from "@/lib/pornhub-local-preview";
 import { AdSlot } from "@/components/ads/ad-slot";
+import { VideoCard } from "@/components/catalog";
+import Link from "@/components/navigation/revenue-link";
 import { HomeVideoRail, type HomeRailItem } from "./video-rail";
+
+const ADULT_LIST_SIZE = 20;
+const ADULT_LIST_HREF = "/porn-videos/latest";
 
 function celebrityItem(video: Video): HomeRailItem {
   return {
@@ -11,96 +18,78 @@ function celebrityItem(video: Video): HomeRailItem {
     thumbnail: video.thumbnail,
     eyebrow: video.actresses.slice(0, 2).join(", "),
     duration: video.duration,
-    rating: video.rating,
-  };
-}
-
-function adultItem(video: PornhubPreviewItem, eyebrow: string): HomeRailItem {
-  return {
-    id: video.id,
-    href: `/watch/${video.slug}`,
-    title: video.title,
-    thumbnail: video.thumbnail,
-    eyebrow,
-    duration: video.duration,
     year: video.year,
     rating: video.rating,
   };
 }
 
+// Preview items only carry what the card renders. The remaining Video fields keep
+// the shared VideoCard shape satisfied and are never displayed. Keeping
+// source: "pornhub" is what hides the year in the card meta row.
+function adultVideo(item: PornhubPreviewItem, index: number): Video {
+  return {
+    // The preview id is an alphanumeric source viewkey, so it cannot be coerced to
+    // a number. numericId carries the real numeric source id instead.
+    id: item.numericId || index + 1,
+    rank: index + 1,
+    slug: item.slug,
+    title: item.title,
+    sceneTitle: item.title,
+    workTitle: item.title,
+    description: "",
+    year: item.year,
+    duration: item.duration,
+    type: "Movie",
+    rating: item.rating,
+    actresses: [],
+    tags: item.tags,
+    embedUrl: "",
+    thumbnail: item.thumbnail,
+    publishedAt: item.publishedAt,
+    source: "pornhub",
+    collections: item.collections,
+    views: item.views,
+  };
+}
+
 export function HomeDiscovery({ latest, preview }: { latest: Video[]; preview: PornhubHomePreview }) {
   const latestYear = latest[0]?.year || new Date().getUTCFullYear();
+  const adultVideos = preview.sections.best.slice(0, ADULT_LIST_SIZE).map(adultVideo);
   return (
     <div className="home-discovery">
       <HomeVideoRail
         eyebrow="Recently added"
         title={`Latest ${latestYear} celebrity scenes`}
-        description={`New movie and television scenes from ${latestYear}, ordered by their latest publication date.`}
-        href={`/latest?year=${latestYear}`}
+        description="New movie and television scenes"
+        href="/latest"
         items={latest.slice(0, 10).map(celebrityItem)}
         priority
       />
       <div className="home-discovery-ad"><AdSlot placement="catalog-top" /></div>
       <div className="home-library-divider"><span>Adult video library</span></div>
-      <HomeVideoRail
-        eyebrow="Popular picks"
-        title="Best from Pornhub"
-        description="Recent, highly viewed videos selected from validated embeds."
-        href="/porn-videos/latest"
-        items={preview.sections.best.map((video) => adultItem(video, "Popular video"))}
-      />
-      <HomeVideoRail
-        eyebrow="Mood"
-        title="Romantic videos"
-        description="Popular romantic and sensual adult videos."
-        href="/porn-category/romantic?order=latest"
-        items={preview.sections.romantic.map((video) => adultItem(video, "Romantic"))}
-      />
-      <div className="home-section-ad"><AdSlot placement="home-break" /></div>
-      <HomeVideoRail
-        eyebrow="Featured"
-        title="Babe videos"
-        description="Popular performer-focused videos with strong ratings."
-        href="/porn-category/babe?order=latest"
-        items={preview.sections.babe.map((video) => adultItem(video, "Babe"))}
-      />
-      <HomeVideoRail
-        eyebrow="Animation"
-        title="Hentai & animated videos"
-        description="Popular adult animation and fantasy videos."
-        href="/porn-category/hentai?order=latest"
-        items={preview.sections.anime.map((video) => adultItem(video, "Animated"))}
-      />
-      <div className="home-section-ad"><AdSlot placement="home-break" /></div>
-      <HomeVideoRail
-        eyebrow="Popular position"
-        title="Doggy style videos"
-        description="Highly viewed doggy style videos from the curated selection."
-        href="/porn-category/doggy-style?order=latest"
-        items={preview.sections.doggy.map((video) => adultItem(video, "Doggy style"))}
-      />
-      <HomeVideoRail
-        eyebrow="Oral picks"
-        title="Pussy licking videos"
-        description="Popular cunnilingus and pussy licking videos selected from validated embeds."
-        href="/porn-category/pussy-licking?order=latest"
-        items={preview.sections.pussyLicking.map((video) => adultItem(video, "Pussy licking"))}
-      />
-      <div className="home-section-ad"><AdSlot placement="home-break" /></div>
-      <HomeVideoRail
-        eyebrow="Fantasy roleplay"
-        title="Step fantasy videos"
-        description="Clearly adult step-family fantasy roleplay videos with validated embeds."
-        href="/porn-category/step-family-roleplay?order=latest"
-        items={preview.sections.stepFantasy.map((video) => adultItem(video, "Step fantasy"))}
-      />
-      <HomeVideoRail
-        eyebrow="Oral videos"
-        title="Blowjob videos"
-        description="Popular blowjob and deep-throat videos from the curated adult selection."
-        href="/porn-category/blowjob?order=latest"
-        items={preview.sections.blowjob.map((video) => adultItem(video, "Blowjob"))}
-      />
+      {adultVideos.length > 0 && (
+        <section className="home-video-rail home-video-list" aria-labelledby="home-best-from-pornhub">
+          <header>
+            <div>
+              <span>Popular picks</span>
+              <h2 id="home-best-from-pornhub">Best from Pornhub</h2>
+              <p>The most viewed validated embeds, starting with the newest years.</p>
+            </div>
+            <Link href={ADULT_LIST_HREF}>View all<ArrowUpRight size={13} aria-hidden="true" /></Link>
+          </header>
+          <div className="video-grid">
+            {adultVideos.map((video, index) => (
+              <Fragment key={video.slug}>
+                <VideoCard video={video} headingLevel={3} />
+                {(index + 1) % 4 === 0 && index < adultVideos.length - 1 && <AdSlot placement="mobile-infeed" />}
+              </Fragment>
+            ))}
+          </div>
+          <div className="home-list-more">
+            <Link className="home-list-more-button" href={ADULT_LIST_HREF}>View all porn videos<ArrowUpRight size={15} aria-hidden="true" /></Link>
+          </div>
+        </section>
+      )}
       <div className="home-section-ad"><AdSlot placement="home-break" /></div>
     </div>
   );

@@ -1,8 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { Check, Clapperboard, ExternalLink, Share2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Check, Clapperboard, ExternalLink, Home, Share2 } from "lucide-react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Video, VideoType } from "@/lib/videos";
 import Link from "@/components/navigation/revenue-link";
 import { AdSlot } from "@/components/ads/ad-slot";
@@ -112,6 +112,18 @@ export function ReelsFeed({ videos, vastTag }: { videos: ReelVideo[]; vastTag?: 
     root.scrollTo({ top: slide.offsetTop, behavior: "smooth" });
   }, [availableIndex]);
 
+  // Assign scrollTop directly instead of scrollTo({ behavior: "auto" }). "auto"
+  // resolves to the container's computed scroll-behavior, which is smooth here,
+  // so it would animate across every slide in between and leave the feed parked
+  // between two snap points.
+  const pinToIndex = useCallback((index: number) => {
+    const root = feedRef.current;
+    const slide = slidesRef.current.get(index);
+    if (!root || !slide) return false;
+    root.scrollTop = slide.offsetTop;
+    return true;
+  }, []);
+
   const skipAd = useCallback((checkpoint: number) => {
     setSkippedAds((current) => {
       if (current.has(checkpoint)) return current;
@@ -119,8 +131,15 @@ export function ReelsFeed({ videos, vastTag }: { videos: ReelVideo[]; vastTag?: 
       next.add(checkpoint);
       return next;
     });
-    window.requestAnimationFrame(() => window.requestAnimationFrame(() => scrollToIndex(checkpoint + 1, 1)));
-  }, [scrollToIndex]);
+    // Hiding the ad slide collapses its height, so wait for layout to settle and
+    // then pin the next reel rather than animating into a shifted offset.
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+      const next = Math.min(items.length - 1, checkpoint + 1);
+      activeIndexRef.current = next;
+      setActiveIndex(next);
+      pinToIndex(next);
+    }));
+  }, [items.length, pinToIndex]);
 
   useEffect(() => {
     const root = feedRef.current;
@@ -141,8 +160,7 @@ export function ReelsFeed({ videos, vastTag }: { videos: ReelVideo[]; vastTag?: 
         if (pendingAd >= 0) {
           activeIndexRef.current = pendingAd;
           setActiveIndex(pendingAd);
-          const adSlide = slidesRef.current.get(pendingAd);
-          if (adSlide) root.scrollTo({ top: adSlide.offsetTop, behavior: "auto" });
+          pinToIndex(pendingAd);
           return;
         }
       }
@@ -153,7 +171,25 @@ export function ReelsFeed({ videos, vastTag }: { videos: ReelVideo[]; vastTag?: 
       if (!skippedAds.has(index)) observer.observe(element);
     });
     return () => observer.disconnect();
-  }, [items, skippedAds]);
+  }, [items, pinToIndex, skippedAds]);
+
+  // Mobile browsers resize the viewport when the URL bar shows or hides, which
+  // changes every slide height and leaves the feed halfway between two reels.
+  // Re-pin the active slide whenever that happens.
+  useEffect(() => {
+    let frame = 0;
+    const repin = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => pinToIndex(activeIndexRef.current));
+    };
+    window.addEventListener("resize", repin);
+    window.addEventListener("orientationchange", repin);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", repin);
+      window.removeEventListener("orientationchange", repin);
+    };
+  }, [pinToIndex]);
 
   useEffect(() => {
     const rawHash = window.location.hash.slice(1);
@@ -161,15 +197,14 @@ export function ReelsFeed({ videos, vastTag }: { videos: ReelVideo[]; vastTag?: 
     let slug = rawHash;
     try { slug = decodeURIComponent(rawHash); } catch { /* use the raw hash */ }
     const targetIndex = items.findIndex((item) => item.kind === "video" && item.video.slug === slug);
-    const root = feedRef.current;
-    if (targetIndex < 0 || !root) return;
+    if (targetIndex < 0) return;
     const frame = window.requestAnimationFrame(() => {
-      root.scrollTo({ top: targetIndex * root.clientHeight, behavior: "auto" });
       activeIndexRef.current = targetIndex;
       setActiveIndex(targetIndex);
+      pinToIndex(targetIndex);
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [items]);
+  }, [items, pinToIndex]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -192,13 +227,11 @@ export function ReelsFeed({ videos, vastTag }: { videos: ReelVideo[]; vastTag?: 
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [activeIndex, adActive, scrollToIndex]);
 
-  useEffect(() => {
+  // Runs before paint, so the locked ad slide is never shown halfway scrolled.
+  useLayoutEffect(() => {
     if (!adActive) return;
-    const root = feedRef.current;
-    const slide = slidesRef.current.get(activeIndex);
-    if (!root || !slide) return;
-    root.scrollTo({ top: slide.offsetTop, behavior: "auto" });
-  }, [activeIndex, adActive]);
+    pinToIndex(activeIndex);
+  }, [activeIndex, adActive, pinToIndex]);
 
   const currentVideoPosition = (() => {
     const current = items[activeIndex];
@@ -211,13 +244,16 @@ export function ReelsFeed({ videos, vastTag }: { videos: ReelVideo[]; vastTag?: 
   const progress = `${Math.max(1, currentVideoPosition / videos.length * 100)}%`;
 
   if (!videos.length) {
-    return <div className="reels-empty"><Clapperboard size={24} /><h1>Swipe videos are temporarily unavailable</h1><Link href="/most-popular">Browse popular scenes</Link></div>;
+    return <div className="reels-empty"><Clapperboard size={24} /><h1>Swipe videos are temporarily unavailable</h1><Link href="/most-popular">Browse popular scenes</Link><Link href="/">Back to home</Link></div>;
   }
 
   return (
     <div className="reels-stage">
       <div className="reels-progress" aria-hidden="true" style={{ "--reels-progress": progress } as React.CSSProperties}><span /></div>
-      <Link className="reels-popular-link" href="/most-popular"><Clapperboard size={13} aria-hidden="true" />Popular videos</Link>
+      <nav className="reels-chrome" aria-label="Leave swipe videos">
+        <Link className="reels-chrome-link" href="/"><Home size={13} aria-hidden="true" />Home</Link>
+        <Link className="reels-chrome-link" href="/most-popular"><Clapperboard size={13} aria-hidden="true" />Popular videos</Link>
+      </nav>
       <div className={`reels-feed${adActive ? " reels-feed-locked" : ""}`} ref={feedRef} role="region" aria-label="Popular swipe videos">
         {items.map((item, index) => {
           const skipped = skippedAds.has(index);

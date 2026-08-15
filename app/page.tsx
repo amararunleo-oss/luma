@@ -1,5 +1,5 @@
 import { CatalogPage } from "@/components/catalog";
-import { PopularNow } from "@/components/home/popular-now";
+import { PopularHero } from "@/components/home/popular-hero";
 import { HomeDiscovery } from "@/components/home/home-discovery";
 import { Sidebar, SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { AdSlot } from "@/components/ads/ad-slot";
@@ -26,23 +26,23 @@ export default async function Home({ searchParams }: { searchParams: Promise<Cat
   const query = await searchParams;
   const filters = parseCatalogFilters(query);
   const page = pageNumber(query.page);
-  const showPopularNow = page === 1 && !hasCatalogFilters(filters);
+  const showHomeFeature = page === 1 && !hasCatalogFilters(filters);
   const latestYear = new Date().getUTCFullYear();
   const [result, popular, preview] = await Promise.all([
-    showPopularNow
+    showHomeFeature
       ? listVideos({ catalog: "celebrity", sort: "latest", order: "latest", year: latestYear, page: 1, pageSize: 25 })
       : listVideos({ catalog: "celebrity", sort: "latest", ...filterQueryOptions(filters), page, pageSize: 25 }),
-    showPopularNow ? getPopularVideos(10) : Promise.resolve([]),
-    showPopularNow ? getLocalPornhubHomePreview() : Promise.resolve(null),
+    showHomeFeature ? getPopularVideos(10) : Promise.resolve([]),
+    showHomeFeature ? getLocalPornhubHomePreview() : Promise.resolve(null),
   ]);
-  if (showPopularNow) {
+  if (showHomeFeature) {
     return (
       <>
         <SiteHeader />
         <main className="site-container content-layout home-content-layout">
           <section className="catalog-content">
             <h1 className="sr-only">Celebrity scenes and popular adult videos</h1>
-            <PopularNow videos={popular} />
+            <PopularHero videos={popular} />
             <HomeDiscovery latest={result.items} preview={preview!} />
             <div className="content-end-ad home-content-end-ad"><AdSlot placement="catalog-footer" /></div>
           </section>

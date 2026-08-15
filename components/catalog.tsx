@@ -11,7 +11,8 @@ import { ADULT_CATEGORIES, adultCategoryMatchTerms } from "@/lib/adult-taxonomy"
 
 export const PAGE_SIZE = 25;
 
-export function VideoCard({ video, priority = false }: { video: Video; priority?: boolean }) {
+export function VideoCard({ video, priority = false, headingLevel = 2 }: { video: Video; priority?: boolean; headingLevel?: 2 | 3 }) {
+  const Heading = headingLevel === 3 ? "h3" : "h2";
   const adultCategory = video.source === "pornhub" ? ADULT_CATEGORIES.find((category) => {
     const values = new Set([...(video.collections ?? []), ...(video.sourceCategories ?? []), ...video.tags].map(slug));
     return adultCategoryMatchTerms(category).some((term) => values.has(slug(term)));
@@ -32,7 +33,7 @@ export function VideoCard({ video, priority = false }: { video: Video; priority?
           ))}
         </div>
       )}
-      <h2><Link adTrigger href={`/watch/${video.slug}`} title={video.sceneTitle}>{video.sceneTitle}</Link></h2>
+      <Heading><Link adTrigger href={`/watch/${video.slug}`} title={video.sceneTitle}>{video.sceneTitle}</Link></Heading>
       <div className="video-meta">{video.source !== "pornhub" && <><span>{video.year}</span><i /></>}<span>{video.rating}% rating</span></div>
     </article>
   );
@@ -119,7 +120,7 @@ export function CatalogPage({
   showPagination?: boolean;
   beforeGrid?: React.ReactNode;
   beforeHeading?: React.ReactNode;
-  filters?: { basePath: string; values: CatalogFilterValues; hideType?: boolean; hideYear?: boolean };
+  filters?: { basePath: string; values: CatalogFilterValues; hideType?: boolean; hideYear?: boolean; hideOrder?: boolean };
 }) {
   const totalItems = total ?? items.length;
   const pages = Math.max(1, Math.ceil(totalItems / pageSize));
@@ -135,7 +136,7 @@ export function CatalogPage({
           <h1>{title}</h1>
           <div><span>{description}</span></div>
         </header>
-        {filters && <CatalogFilters basePath={filters.basePath} values={filters.values} hideType={filters.hideType} hideYear={filters.hideYear} />}
+        {filters && <CatalogFilters basePath={filters.basePath} values={filters.values} hideType={filters.hideType} hideYear={filters.hideYear} hideOrder={filters.hideOrder} />}
         {!beforeHeading && <AdSlot placement="catalog-top" />}
         {beforeGrid}
         {visible.length > 0 ? (

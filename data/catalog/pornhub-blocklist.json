@@ -1,0 +1,11 @@
+{
+  "comment": "Videos suppressed from every surface: home, listings, categories, search, related, watch, sitemaps. sourceId is the Pornhub viewkey; slug is the catalog slug. Either one matches. Reason 'embed-disabled' means the embed page answers HTTP 200 but the player refuses playback with 'This video cannot be viewed here', which the HTTP-only validator cannot detect.",
+  "blocked": [
+    {
+      "sourceId": "68389323d031b",
+      "reason": "embed-disabled",
+      "addedAt": "2026-08-15",
+      "note": "Reported by screenshot. Embed probe recorded status 200 via www.pornhub.org."
+    }
+  ]
+}

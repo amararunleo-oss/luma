@@ -5,9 +5,11 @@ import path from "node:path";
 import { gunzipSync } from "node:zlib";
 import { Redis } from "@upstash/redis";
 import { AGE_RISK_TERMS, ADULT_CATEGORIES, adultCategoryBySlugOrName, adultCategoryMatchTerms } from "@/lib/adult-taxonomy";
+import { getPornhubBlocklist } from "@/lib/pornhub-blocklist";
 import { slugify, type Video } from "@/lib/videos";
 
 type SourceRecord = {
+  sourceId?: string;
   sourceNumericId: number;
   slug: string;
   title: string;
@@ -125,12 +127,13 @@ async function remotePornhubContents() {
 
 export function getLocalPornhubVideos() {
   recordsPromise ??= Promise.all([
+    getPornhubBlocklist(),
     process.env.NODE_ENV === "production"
       ? remotePornhubContents().then((contents) => contents || readFile(path.join(process.cwd(), "data/catalog/pornhub-featured.jsonl"), "utf8").catch(() => ""))
       : readFile(path.join(process.cwd(), "data/staging/pornhub/final.jsonl"), "utf8").catch(() => readFile(path.join(process.cwd(), "data/catalog/pornhub-featured.jsonl"), "utf8")).catch(() => ""),
     readFile(path.join(process.cwd(), "data/catalog/pornhub-manual.jsonl"), "utf8").catch(() => ""),
     readFile(path.join(process.cwd(), "data/staging/pornhub/manual.jsonl"), "utf8").catch(() => ""),
-  ]).then((sources) => {
+  ]).then(([blocked, ...sources]) => {
     const unique = new Map<string, SourceRecord>();
     for (const contents of sources) {
       for (const line of contents.split(/\r?\n/).filter(Boolean)) {
@@ -138,7 +141,10 @@ export function getLocalPornhubVideos() {
         unique.set(String(record.sourceNumericId), record);
       }
     }
-    return [...unique.values()].filter(safeSourceRecord).map(toVideo);
+    return [...unique.values()]
+      .filter((record) => !blocked.ids.has(String(record.sourceId ?? "")) && !blocked.slugs.has(record.slug))
+      .filter(safeSourceRecord)
+      .map(toVideo);
   }).catch(() => []);
   return recordsPromise;
 }

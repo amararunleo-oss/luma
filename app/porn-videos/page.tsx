@@ -14,7 +14,7 @@ const description = "Browse adult porn videos across popular categories, with cl
 export async function generateMetadata({ searchParams }: { searchParams: Promise<CatalogFilterParams> }) {
   const query = await searchParams;
   const filters = parseCatalogFilters(query);
-  const result = await listVideos({ catalog: "porn", minYear: 2024, page: 1, pageSize: 1 });
+  const result = await listVideos({ catalog: "porn", page: 1, pageSize: 1 });
   return catalogMetadata({
     title,
     description,
@@ -29,7 +29,7 @@ export default async function PornVideosPage({ searchParams }: { searchParams: P
   const query = await searchParams;
   const filters = parseCatalogFilters(query);
   const page = pageNumber(query.page);
-  const result = await listVideos({ catalog: "porn", minYear: 2024, ...filterQueryOptions(filters), order: filters.order ?? "latest", page, pageSize: 25 });
+  const result = await listVideos({ catalog: "porn", ...filterQueryOptions(filters), order: filters.order ?? "latest", page, pageSize: 25 });
   const pages = Math.max(1, Math.ceil(result.total / result.pageSize));
   if (page > pages) notFound();
   return (
@@ -45,7 +45,7 @@ export default async function PornVideosPage({ searchParams }: { searchParams: P
         pageSize={result.pageSize}
         prePaginated
         basePath={catalogFilterPath("/porn-videos", filters)}
-        filters={{ basePath: "/porn-videos", values: filters, hideType: true }}
+        filters={{ basePath: "/porn-videos", values: filters, hideType: true, hideYear: true }}
         beforeGrid={<AdultCategoryStrip />}
       />
       <SiteFooter />

@@ -47,6 +47,7 @@ export default async function SwipeVideosPage() {
 
   return (
     <main className="reels-page">
+      <h1 className="sr-only">Popular celebrity swipe videos</h1>
       <div className="reels-layout">
         <ReelsFeed videos={feed} vastTag={vastTag} />
       </div>

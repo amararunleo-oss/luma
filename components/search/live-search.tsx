@@ -7,6 +7,8 @@ import { AlertCircle, Clock3, Film, Flame, LoaderCircle, Play, Search, Tags, Tra
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SearchSuggestion, SearchSuggestions } from "@/lib/catalog/repository";
 import { AdSlot } from "@/components/ads/ad-slot";
+import { SelectMenu } from "@/components/ui/select-menu";
+import { DEFAULT_SEARCH_SCOPE, searchScopeOptions } from "@/lib/search-scope";
 
 const groupDetails = {
   videos: { label: "Videos", icon: Play },
@@ -55,6 +57,8 @@ export function LiveSearch() {
   const [requestError, setRequestError] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [history, setHistory] = useState<string[]>(initialSearchHistory);
+  const [scope, setScope] = useState<string>(DEFAULT_SEARCH_SCOPE);
+  const scopeOptions = useMemo(() => searchScopeOptions(), []);
 
   const groups = useMemo(() => results ? (["categories", "videos", "actresses", "movies", "tvShows"] as const)
     .map((key) => ({ key, items: results[key] }))
@@ -92,6 +96,12 @@ export function LiveSearch() {
     return () => document.removeEventListener("keydown", focusSearch);
   }, []);
 
+  const resultsHref = useMemo(() => {
+    const params = new URLSearchParams({ q: trimmedQuery });
+    if (scope !== DEFAULT_SEARCH_SCOPE) params.set("scope", scope);
+    return `/search?${params.toString()}`;
+  }, [scope, trimmedQuery]);
+
   useEffect(() => {
     if (query.trim().length < 2) return;
     const timer = window.setTimeout(async () => {
@@ -102,7 +112,7 @@ export function LiveSearch() {
       setLoading(true);
       setRequestError(false);
       try {
-        const response = await fetch(`/api/search?q=${encodeURIComponent(query.trim())}`, { signal: controller.signal });
+        const response = await fetch(`/api/search?q=${encodeURIComponent(query.trim())}&scope=${encodeURIComponent(scope)}`, { signal: controller.signal });
         if (!response.ok) throw new Error("Search request failed");
         const payload = await response.json() as SearchSuggestions;
         if (sequence !== requestSequence.current) return;
@@ -115,7 +125,7 @@ export function LiveSearch() {
       }
     }, 280);
     return () => window.clearTimeout(timer);
-  }, [query]);
+  }, [query, scope]);
 
   useEffect(() => {
     const closeOnOutsideClick = (event: PointerEvent) => {
@@ -209,7 +219,17 @@ export function LiveSearch() {
       ><Search size={18} aria-hidden="true" /></button>
       <form id="header-search-form" className="header-search" action="/search" role="search" onSubmit={() => saveSearch(query)}>
         <label className="sr-only" htmlFor="site-search">Search videos, celebrities, movies, TV shows and categories</label>
-        <Search size={16} aria-hidden="true" />
+        <SelectMenu
+          key={scope}
+          id="site-search-scope"
+          name="scope"
+          variant="select-menu-scope"
+          ariaLabel="Limit search to a library"
+          defaultValue={scope}
+          options={scopeOptions}
+          onValueChange={setScope}
+        />
+        <Search className="header-search-icon" size={16} aria-hidden="true" />
         <input
           ref={input}
           id="site-search"
@@ -272,7 +292,7 @@ export function LiveSearch() {
           {!loading && requestError && <div className="search-empty search-failed"><AlertCircle size={18} aria-hidden="true" /><strong>Search is temporarily unavailable</strong><span>Wait a moment and try again.</span></div>}
           {!loading && !requestError && !hasResults && <div className="search-empty"><strong>No matches found</strong><span>Try a celebrity, title or adult category.</span></div>}
           {hasResults && <div className="search-ad" role="presentation"><AdSlot active={open} placement="search-compact" /></div>}
-          <Link className="search-view-all" href={`/search?q=${encodeURIComponent(query.trim())}`} onClick={() => { saveSearch(query); setOpen(false); }}>View all results</Link>
+          <Link className="search-view-all" href={resultsHref} onClick={() => { saveSearch(query); setOpen(false); }}>View all results</Link>
           </>}
         </div>
       )}

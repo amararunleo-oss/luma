@@ -93,6 +93,7 @@ function shuffled(values, key) {
 function item(record) {
   return {
     id: String(record.sourceId),
+    numericId: Number(record.sourceNumericId) || 0,
     slug: String(record.slug),
     title: String(record.title).trim(),
     thumbnail: String(record.thumbnailUrl),
@@ -112,10 +113,27 @@ const input = path.resolve(options.input ?? "data/staging/pornhub/final.jsonl");
 const output = path.resolve(options.out ?? "data/catalog/pornhub-home-preview.json");
 const recordsOutput = path.resolve(options["records-out"] ?? "data/catalog/pornhub-featured.jsonl");
 const limit = Math.max(5, Number(options.limit ?? 10));
+const bestLimit = Math.max(limit, Number(options["best-limit"] ?? 20));
+
+// Videos that answer HTTP 200 but refuse to play inside an embed. The validator
+// cannot see that, so they are suppressed by id/slug here and in the runtime
+// catalog reader.
+const blocked = await readFile(path.resolve(options.blocklist ?? "data/catalog/pornhub-blocklist.json"), "utf8")
+  .then((value) => {
+    const entries = JSON.parse(value).blocked;
+    const list = Array.isArray(entries) ? entries : [];
+    return {
+      ids: new Set(list.map((entry) => String(entry.sourceId ?? "").trim()).filter(Boolean)),
+      slugs: new Set(list.map((entry) => String(entry.slug ?? "").trim()).filter(Boolean)),
+    };
+  })
+  .catch(() => ({ ids: new Set(), slugs: new Set() }));
+
 const records = (await readFile(input, "utf8"))
   .split(/\r?\n/)
   .filter(Boolean)
   .map((line) => JSON.parse(line))
+  .filter((record) => !blocked.ids.has(String(record.sourceId ?? "")) && !blocked.slugs.has(String(record.slug ?? "")))
   .filter((record) => {
     const year = Number(String(record.publishedAt ?? "").slice(0, 4));
     return year >= 2024 && year <= 2026;
@@ -140,8 +158,27 @@ function select(name, predicate) {
   return selected.map(item);
 }
 
+// The homepage renders this as its only adult list: newest year first
+// (2026 -> 2025 -> 2024) and most viewed first inside each year. Unlike the
+// category rails it reads the whole eligible set instead of a recency-capped
+// candidate window, otherwise the view ordering would be biased to new uploads.
+function selectMostViewed(name, count) {
+  const selected = [2026, 2025, 2024]
+    .flatMap((year) => records
+      .filter((record) => !used.has(String(record.sourceId)) && Number(String(record.publishedAt ?? "").slice(0, 4)) === year)
+      .sort((left, right) => (Number(right.views) || 0) - (Number(left.views) || 0) || score(right) - score(left)))
+    .slice(0, count);
+  for (const record of selected) {
+    const sourceId = String(record.sourceId);
+    used.add(sourceId);
+    featured.set(sourceId, record);
+  }
+  console.log(`${name}: newest-year-first, most viewed first (${selected.length})`);
+  return selected.map(item);
+}
+
 const sections = {
-  best: select("best", () => true),
+  best: selectMostViewed("best", bestLimit),
   romantic: select("romantic", (record) => hasStrictTaxonomyTerm(record, ["romantic", "romance", "passionate", "sensual", "love making"])),
   babe: select("babe", (record) => hasStrictTaxonomyTerm(record, ["babe", "beautiful", "brunette", "blonde", "redhead", "sexy woman", "hot woman"])),
   anime: select("anime", (record) => hasStrictTaxonomyTerm(record, ["hentai anime", "hentai", "anime", "animated", "cartoon"])),
