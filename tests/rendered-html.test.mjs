@@ -499,7 +499,7 @@ test("gives every boxed surface a shared corner radius token", async () => {
   const tokenised = [
     ["controls", ["\\.browse-trigger", "\\.mobile-search-trigger", "\\.catalog-filters", "\\.select-menu-trigger", "\\.catalog-navigation > section", "\\.status-page a, \\.status-page button", "\\.home-list-more-button"]],
     ["panels", ["\\.search-popover", "\\.select-menu-popover", "\\.report-modal", "\\.popular-hero-viewport"]],
-    ["chips", ["\\.drawer-tag-links a", "\\.sidebar-category-links a", "\\.adult-category-strip > div:last-child a", "\\.reels-chrome-link"]],
+    ["chips", ["\\.drawer-tag-links a", "\\.sidebar-category-links a", "\\.adult-category-strip > div:last-child a"]],
     ["tiles", ["\\.catalog-navigation-icon", "\\.sidebar-home-icon", "\\.browse-drawer > nav > a > span", "\\.search-result > img"]],
     ["cards", ["\\.video-thumb", "\\.home-rail-media", "\\.player-frame", "\\.adult-category-grid > a", "\\.collection-link-grid > a"]],
   ];
@@ -795,7 +795,7 @@ test("keeps vertical swipe videos isolated, bounded, and VAST-enabled", async ()
     source("lib/sitemaps.ts"),
   ]);
 
-  assert.match(page, /getPopularVideos\(200\)/);
+  assert.match(page, /getPopularVideos\(60\)/);
   assert.match(page, /NEXT_PUBLIC_EXOCLICK_VERTICAL_VAST_TAG_URL/);
   // Ad density: a forced video ad every sixth reel, and the interstitial spaced out
   // and capped instead of firing on every swipe.
@@ -824,10 +824,9 @@ test("keeps vertical swipe videos isolated, bounded, and VAST-enabled", async ()
   assert.match(feed, /if \(frames < 40\) frame = window\.requestAnimationFrame\(settle\)/);
   assert.match(feed, /viewport\?\.addEventListener\("resize", repin\)/);
   assert.match(feed, /placement="catalog-instant"/);
-  assert.match(feed, /Math\.abs\(index - activeIndex\) <= 1/);
+  assert.match(feed, /Math\.abs\(index - activeIndex\) <= 2/);
   assert.match(feed, /reels-feed-locked/);
   assert.match(feed, /if \(adActive && \["ArrowDown", "PageDown", "ArrowUp", "PageUp", " "\]/);
-  assert.match(feed, /Swipe up to explore/);
   assert.match(feed, /navigator\.share/);
   assert.match(feed, /className="reel-share"/);
   assert.match(vast, /import\("@dailymotion\/vast-client"\)/);
@@ -848,9 +847,8 @@ test("keeps vertical swipe videos isolated, bounded, and VAST-enabled", async ()
   // Indexable page, so it needs a heading even though the chrome is hidden.
   assert.match(page, /<h1 className="sr-only">Popular celebrity swipe videos<\/h1>/);
 
-  // The reels route hides the site chrome, so it carries its own way back out.
-  assert.match(feed, /className="reels-chrome-link" href="\/"/);
-  assert.match(feed, /aria-label="Leave swipe videos"/);
+  // The reels route uses a minimal brand link instead of full chrome.
+  assert.match(feed, /className="reels-brand" href="\/"/);
 
   assert.match(home, /<PopularHero videos=\{popular\} \/>/);
   assert.match(home, /<HomeDiscovery latest=\{result\.items\} preview=\{preview!\} \/>/);

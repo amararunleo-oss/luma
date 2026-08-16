@@ -884,8 +884,8 @@ img { max-width: 100%; }
 .reel-scene-player iframe { display:block; }
 .reel-scene-topline { position:absolute; z-index:3; top:20px; left:20px; display:flex; align-items:center; gap:7px; color:rgba(255,255,255,.72); font-size:8px; font-weight:660; letter-spacing:.075em; text-transform:uppercase; }
 .reel-scene-topline i { width:2px; height:2px; border-radius:50%; background:rgba(255,255,255,.5); }
-.reel-share { min-height:36px; padding:0 11px; position:absolute; z-index:5; top:66px; right:18px; display:flex; align-items:center; gap:7px; border:1px solid rgba(255,255,255,.2); border-radius:var(--pill-radius); background:rgba(9,6,8,.68); color:#fff; cursor:pointer; font-size:8px; font-weight:720; -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px); transition:background .18s ease,border-color .18s ease,transform .18s ease; }
-.reel-share:hover { border-color:rgba(255,255,255,.42); background:rgba(16,11,14,.9); transform:translateY(-1px); }
+.reel-share { width:40px; height:40px; position:absolute; z-index:5; top:16px; right:16px; display:grid; place-items:center; border:1px solid rgba(255,255,255,.18); border-radius:50%; background:rgba(9,6,8,.6); color:#fff; cursor:pointer; -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); transition:background .18s ease,border-color .18s ease; }
+.reel-share:hover { border-color:rgba(255,255,255,.4); background:rgba(16,11,14,.85); }
 .reel-scene-copy { max-width:calc(100% - 72px); position:absolute; z-index:3; right:20px; bottom:24px; left:20px; }
 .reel-scene-copy > p { margin:0 0 8px; overflow:hidden; color:#ff618a; font-size:8px; font-weight:780; letter-spacing:.09em; text-overflow:ellipsis; text-transform:uppercase; white-space:nowrap; }
 .reel-scene-copy h2 { margin:0; overflow:hidden; font-family:Georgia,"Times New Roman",serif; font-size:clamp(26px,3vw,36px); font-weight:500; letter-spacing:-.04em; line-height:1.04; text-overflow:ellipsis; white-space:nowrap; }
@@ -903,9 +903,9 @@ img { max-width: 100%; }
    here made the desktop progress rail invisible. */
 .reels-progress { width:2px; height:56px; position:absolute; z-index:9; top:50%; left:12px; overflow:hidden; border-radius:2px; background:rgba(255,255,255,.16); transform:translateY(-50%); }
 .reels-progress span { width:100%; height:var(--reels-progress); position:absolute; bottom:0; left:0; background:#ff416f; transition:height .28s ease; }
-.reels-chrome { position:absolute; z-index:12; top:18px; right:18px; display:flex; align-items:center; gap:7px; }
-.reels-chrome-link { min-height:36px; padding:0 12px; display:flex; align-items:center; gap:7px; border:1px solid rgba(255,255,255,.2); border-radius:var(--pill-radius); background:rgba(9,6,8,.72); color:#fff; font-size:8px; font-weight:730; letter-spacing:.035em; white-space:nowrap; -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); box-shadow:0 8px 28px rgba(0,0,0,.22); transition:background .18s ease,border-color .18s ease,transform .18s ease; }
-.reels-chrome-link:hover { border-color:rgba(255,255,255,.42); background:rgba(16,11,14,.92); transform:translateY(-1px); }
+.reels-brand { width:40px; height:40px; position:absolute; z-index:12; top:16px; left:16px; display:grid; place-items:center; border:1px solid rgba(255,255,255,.18); border-radius:50%; background:rgba(9,6,8,.6); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); transition:background .18s ease,border-color .18s ease; }
+.reels-brand:hover { border-color:rgba(255,255,255,.4); background:rgba(16,11,14,.85); }
+.reels-brand .brand-dot { width:11px; height:11px; }
 .reels-empty { min-height:420px; padding:35px; display:grid; place-content:center; justify-items:center; gap:12px; border:1px solid rgba(255,255,255,.12); border-radius:22px; text-align:center; }
 .reels-empty h1 { margin:0; font-family:Georgia,serif; font-weight:500; }
 .reels-empty a { color:#ff6a8f; font-size:10px; }

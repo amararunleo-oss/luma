@@ -1,9 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { Check, Clapperboard, ExternalLink, Home, Share2 } from "lucide-react";
+import { Check, ExternalLink, Share2 } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { Video, VideoType } from "@/lib/videos";
+import type { Video } from "@/lib/videos";
 import Link from "@/components/navigation/revenue-link";
 import { AdSlot } from "@/components/ads/ad-slot";
 import { VerticalVastSlide } from "./vertical-vast-slide";
@@ -30,10 +30,6 @@ function buildFeed(videos: ReelVideo[], includeAds: boolean): FeedItem[] {
     }
   });
   return items;
-}
-
-function typeLabel(type: VideoType) {
-  return type === "TV Show" ? "TV scene" : "Movie scene";
 }
 
 function ReelScene({ active, video }: { active: boolean; video: ReelVideo }) {
@@ -74,16 +70,14 @@ function ReelScene({ active, video }: { active: boolean; video: ReelVideo }) {
           />
         ) : <Image src={video.thumbnail} alt={video.sceneTitle} fill sizes="430px" />}
       </div>
-      <div className="reel-scene-topline"><Clapperboard size={14} aria-hidden="true" /><span>Popular scene</span><i /> <span>{typeLabel(video.type)}</span></div>
       <button className="reel-share" type="button" onClick={shareScene} aria-label={`Share ${video.sceneTitle}`}>
         {shared ? <Check size={16} aria-hidden="true" /> : <Share2 size={16} aria-hidden="true" />}
-        <span>{shared ? "Copied" : "Share"}</span>
       </button>
       <div className="reel-scene-copy">
         {video.actresses.length > 0 && <p>{video.actresses.slice(0, 3).join(", ")}</p>}
         <h2>{video.sceneTitle}</h2>
         <span>{video.workTitle}<i aria-hidden="true" />{video.year}<i aria-hidden="true" />{video.duration}</span>
-        <Link href={`/watch/${video.slug}`}>View scene details<ExternalLink size={14} aria-hidden="true" /></Link>
+        <Link href={`/watch/${video.slug}`}>View details<ExternalLink size={13} aria-hidden="true" /></Link>
       </div>
     </div>
   );
@@ -293,16 +287,15 @@ export function ReelsFeed({ videos, vastTag }: { videos: ReelVideo[]; vastTag?: 
   })();
 
   if (!videos.length) {
-    return <div className="reels-empty"><Clapperboard size={24} /><h1>Swipe videos are temporarily unavailable</h1><Link href="/most-popular">Browse popular scenes</Link><Link href="/">Back to home</Link></div>;
+    return <div className="reels-empty"><h1>Swipe videos are temporarily unavailable</h1><Link href="/most-popular">Browse popular scenes</Link><Link href="/">Back to home</Link></div>;
   }
 
   return (
     <div className="reels-stage">
       <div className="reels-progress" aria-hidden="true" style={{ "--reels-progress": progress } as React.CSSProperties}><span /></div>
-      <nav className="reels-chrome" aria-label="Leave swipe videos">
-        <Link className="reels-chrome-link" href="/"><Home size={13} aria-hidden="true" />Home</Link>
-        <Link className="reels-chrome-link" href="/most-popular"><Clapperboard size={13} aria-hidden="true" />Popular videos</Link>
-      </nav>
+      <Link className="reels-brand" href="/" aria-label="Back to home">
+        <span className="brand-dot" aria-hidden="true" />
+      </Link>
       <div className={`reels-feed${adActive ? " reels-feed-locked" : ""}`} ref={feedRef} role="region" aria-label="Popular swipe videos">
         {items.map((item, index) => {
           const skipped = skippedAds.has(index);
@@ -316,13 +309,12 @@ export function ReelsFeed({ videos, vastTag }: { videos: ReelVideo[]; vastTag?: 
               aria-label={item.kind === "video" ? `${item.position} of ${videos.length}: ${item.video.sceneTitle}` : "Advertisement"}
             >
               {item.kind === "video"
-                ? Math.abs(index - activeIndex) <= 1 && <ReelScene active={index === activeIndex} video={item.video} />
+                ? Math.abs(index - activeIndex) <= 2 && <ReelScene active={index === activeIndex} video={item.video} />
                 : index === activeIndex && <VerticalVastSlide checkpoint={index} vastTag={vastTag} onUnavailable={skipAd} />}
             </section>
           );
         })}
       </div>
-      <div className="reels-swipe-guide" aria-hidden="true"><i /><span>Swipe up to explore</span></div>
       {instantAdSlot !== null && <AdSlot active key={`reels-instant-${instantAdSlot}`} placement="catalog-instant" />}
     </div>
   );

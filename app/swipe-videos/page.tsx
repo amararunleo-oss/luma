@@ -6,7 +6,7 @@ export const revalidate = 21_600;
 
 export const metadata: Metadata = {
   title: "Popular Celebrity Swipe Videos",
-  description: "Swipe through 200 popular adult celebrity scenes from movies and television.",
+  description: "Swipe through 60 popular adult celebrity scenes from movies and television.",
   alternates: { canonical: "/swipe-videos" },
   openGraph: {
     title: "Popular Celebrity Swipe Videos",
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 };
 
 export default async function SwipeVideosPage() {
-  const videos = await getPopularVideos(200);
+  const videos = await getPopularVideos(60);
   const feed: ReelVideo[] = videos.map((video) => ({
     id: video.id,
     slug: video.slug,
