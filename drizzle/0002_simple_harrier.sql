@@ -1,1 +1,0 @@
-ALTER TABLE `videos` ADD `player_aspect_ratio` real DEFAULT 1.7777777777777777 NOT NULL;

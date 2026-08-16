@@ -1,5 +1,3 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
 # dependencies
 /node_modules
 /.pnp
@@ -27,23 +25,40 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+*.log
 
-# env files (can opt-in for committing if needed)
+# env files — all ignored, no exceptions
 .env*
-!.env.example
-!.env.r2.example
 
 # vercel
 .vercel
 
+# build artifacts
 /dist/
 /build/
 /.wrangler/
 /outputs/
 /work/
 /storage/
-/data/staging/
-/.dev-server.*.log
 /*.tsbuildinfo
+
+# operational scripts, docs, db schema, migrations — internal only
+/scripts/
+/docs/
+/db/
+/drizzle/
+
+# data sources and staging
+/data/staging/
+/data/videocelebs/
+/data/catalog/pornhub-manual.jsonl
+
+# config examples and auth
 /authorized-media.json
+/authorized-media.example.json
 /wrangler.import.jsonc
+/proxy.ts
+
+# editor
+.vscode/
+.idea/
