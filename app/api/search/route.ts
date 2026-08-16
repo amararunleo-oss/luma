@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     if (query.length > 80) throw new AppError(400, "SEARCH_TOO_LONG", "Search terms must be 80 characters or fewer.");
     const scope = parseSearchScope(url.searchParams.get("scope") ?? undefined);
     const results = await searchCatalog(query, 5, scope);
-    return Response.json(results, { headers: { "Cache-Control": "public, max-age=30, s-maxage=300, stale-while-revalidate=3600", "CDN-Cache-Control": "public, max-age=300, stale-while-revalidate=3600", "X-Content-Type-Options": "nosniff" } });
+    return Response.json(results, { headers: { "Cache-Control": "public, max-age=60, s-maxage=600, stale-while-revalidate=3600", "CDN-Cache-Control": "public, max-age=600, stale-while-revalidate=3600", "X-Content-Type-Options": "nosniff" } });
   } catch (error) {
     return errorResponse(error);
   }

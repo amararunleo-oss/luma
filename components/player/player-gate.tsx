@@ -10,13 +10,18 @@ type FullscreenElement = HTMLDivElement & { webkitRequestFullscreen?: () => Prom
 // and the provider's own page can delay or swallow it. Remounting on a timer
 // therefore risks destroying a video the visitor is already watching, so nothing is
 // remounted automatically. The timeout only reveals a manual reload control.
-const LOAD_TIMEOUT_MS = 12_000;
+const LOAD_TIMEOUT_MS = 8_000;
 // Some providers serve an interstitial document that runs a script and then
 // navigates the same iframe again (a bot check that reloads once solved, for
 // example). Each navigation fires its own onLoad, so the first onLoad is not
 // necessarily the real content. The overlay is only cleared once this long has
 // passed since the *last* onLoad without another one following it.
 const SETTLE_MS = 1_500;
+// The bot-challenge page sets a cookie then reloads. If the first load gets a TCP
+// reset (the challenge couldn't even reach), a single automatic retry after a short
+// pause usually succeeds because the browser retains the connection. Only one retry
+// is attempted to avoid infinite loops on genuinely blocked embeds.
+const AUTO_RETRY_DELAY_MS = 2_500;
 
 export function PlayerGate({ embedUrl, title, sourceUrl }: { embedUrl: string; title: string; aspectRatio?: number; sourceUrl?: string }) {
   const frame = useRef<FullscreenElement>(null);
@@ -26,6 +31,7 @@ export function PlayerGate({ embedUrl, title, sourceUrl }: { embedUrl: string; t
   const [loading, setLoading] = useState(true);
   const loaded = useRef(false);
   const settleTimer = useRef<number | undefined>(undefined);
+  const hasRetried = useRef(false);
 
   useEffect(() => {
     const mount = window.requestAnimationFrame(() => setMounted(true));
@@ -34,16 +40,25 @@ export function PlayerGate({ embedUrl, title, sourceUrl }: { embedUrl: string; t
 
   useEffect(() => {
     loaded.current = false;
+    hasRetried.current = false;
     return () => window.clearTimeout(settleTimer.current);
   }, [attempt, embedUrl]);
 
   // Offers the reload control if load never fired. It never remounts on its own.
   useEffect(() => {
     if (!mounted) return;
+    // One automatic retry after a short delay — the bot-challenge cookie needs one
+    // round trip to land, so a second attempt usually succeeds without user action.
+    const autoRetry = window.setTimeout(() => {
+      if (!loaded.current && !hasRetried.current) {
+        hasRetried.current = true;
+        setAttempt((value) => value + 1);
+      }
+    }, AUTO_RETRY_DELAY_MS);
     const watch = window.setTimeout(() => {
       if (!loaded.current) setStalled(true);
     }, LOAD_TIMEOUT_MS);
-    return () => window.clearTimeout(watch);
+    return () => { window.clearTimeout(autoRetry); window.clearTimeout(watch); };
   }, [attempt, embedUrl, mounted]);
 
   const handleLoad = () => {
@@ -95,10 +110,10 @@ export function PlayerGate({ embedUrl, title, sourceUrl }: { embedUrl: string; t
       )}
       {stalled && (
         <div className="player-stalled" role="status">
-          <p>Player took too long to load.</p>
+          <p>Video didn't load — try refreshing the page.</p>
           <div className="player-stalled-actions">
-            <button type="button" onClick={reloadPlayer}><RotateCcw size={14} aria-hidden="true" />Reload</button>
-            {sourceUrl && <a href={sourceUrl} target="_blank" rel="noopener noreferrer">Watch on source site<Maximize2 size={12} aria-hidden="true" /></a>}
+            <button type="button" onClick={reloadPlayer}><RotateCcw size={14} aria-hidden="true" />Retry</button>
+            {sourceUrl && <a href={sourceUrl} target="_blank" rel="noopener noreferrer">Watch on source<Maximize2 size={12} aria-hidden="true" /></a>}
           </div>
         </div>
       )}

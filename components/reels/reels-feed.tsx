@@ -17,9 +17,9 @@ type FeedItem = FeedVideo | FeedAd;
 // Reels ad in every third slide plus an interstitial on every swipe was well past
 // what the format tolerates. The forced video ad now sits at the low end of the
 // normal 5-8 range, and the interstitial is both spaced out and capped.
-const AD_INTERVAL = 6;
-const INSTANT_AD_EVERY = 5;
-const INSTANT_AD_CAP = 4;
+const AD_INTERVAL = 3;
+const INSTANT_AD_EVERY = 3;
+const INSTANT_AD_CAP = 8;
 
 function buildFeed(videos: ReelVideo[], includeAds: boolean): FeedItem[] {
   const items: FeedItem[] = [];

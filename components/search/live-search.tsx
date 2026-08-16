@@ -123,7 +123,7 @@ export function LiveSearch() {
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }
-    }, 280);
+    }, 180);
     return () => window.clearTimeout(timer);
   }, [query, scope]);
 
@@ -236,7 +236,7 @@ export function LiveSearch() {
           name="q"
           type="search"
           value={query}
-          placeholder="Search videos, celebrities, categories"
+          placeholder="Search..."
           autoComplete="off"
           autoCapitalize="off"
           spellCheck={false}

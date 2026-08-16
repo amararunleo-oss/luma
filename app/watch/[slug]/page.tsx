@@ -135,13 +135,13 @@ export default async function WatchPage({ params }: { params: Promise<{ slug: st
           <div className="watch-stage">
             <div className="watch-media">
               <PlayerGate key={`${video.slug}:${video.embedUrl}`} embedUrl={video.embedUrl} title={video.sceneTitle} aspectRatio={video.playerAspectRatio} sourceUrl={isPornhub ? video.embedUrl.replace("/embed/", "/view_video.php?viewkey=") : undefined} />
+              <AdSlot keywords={video.tags} placement="below-player" />
               <section className="video-description" aria-labelledby="scene-description-title">
                 <h2 id="scene-description-title">{isPornhub ? "About this video" : "About this scene"}</h2>
                 <p>{enrichedDescription}</p>
               </section>
             </div>
           </div>
-          <div className="watch-banner"><AdSlot keywords={video.tags} placement="below-player" /></div>
           <div className="detail-data" aria-label="Scene information">
             <dl>
               <div><dt>Title</dt><dd>{isPornhub ? video.sceneTitle : <Link href={workPath}>{video.workTitle}</Link>}</dd></div>

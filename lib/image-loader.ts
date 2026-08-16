@@ -12,9 +12,12 @@
 const resizeBase = process.env.NEXT_PUBLIC_MEDIA_RESIZE_BASE?.trim().replace(/\/$/, "");
 
 export default function mediaLoader({ src, width, quality }: { src: string; width: number; quality?: number }) {
-  if (!resizeBase) return src;
-  // Absolute sources are passed whole; same-origin paths are passed as paths, which
-  // is what Cloudflare expects for a zone it already fronts.
+  if (!resizeBase) {
+    // Without a resize endpoint this is a passthrough. Appending a width hint as a
+    // fragment satisfies Next.js's "loader must implement width" check without
+    // actually changing the request (fragments are not sent to the server).
+    return `${src}#w=${width}`;
+  }
   const target = /^https?:\/\//i.test(src) ? src : src.startsWith("/") ? src : `/${src}`;
   const options = [`width=${Math.round(width)}`, "format=auto", `quality=${quality ?? 78}`, "fit=cover"].join(",");
   return `${resizeBase}/${options}${target.startsWith("/") ? target : `/${target}`}`;
