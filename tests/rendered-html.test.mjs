@@ -172,7 +172,7 @@ test("keeps metadata and iframe props serializable without development warnings"
   assert.match(player, /"use client"/);
   assert.match(player, /allowFullScreen/);
   assert.match(player, /allow="autoplay; encrypted-media; fullscreen; picture-in-picture"/);
-  assert.match(player, /scrolling="no"/);
+  assert.match(player, /onLoad=\{handleLoad\}/);
 });
 
 test("builds clean absolute filter URLs and renders filtered empty states", async () => {
@@ -786,13 +786,12 @@ test("keeps ExoClick configuration valid and uses a fresh document lifecycle for
 });
 
 test("keeps vertical swipe videos isolated, bounded, and VAST-enabled", async () => {
-  const [page, feed, vast, home, repository, envExample, sitemap] = await Promise.all([
+  const [page, feed, vast, home, repository, sitemap] = await Promise.all([
     source("app/swipe-videos/page.tsx"),
     source("components/reels/reels-feed.tsx"),
     source("components/reels/vertical-vast-slide.tsx"),
     source("app/page.tsx"),
     source("lib/catalog/repository.ts"),
-    source(".env.example"),
     source("lib/sitemaps.ts"),
   ]);
 
