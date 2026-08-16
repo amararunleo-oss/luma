@@ -197,11 +197,11 @@ img { max-width: 100%; }
 /* Leading scope chip inside the header search field. Borderless so the field reads
    as one control, with its own fill to separate it from the input. */
 .select-menu-scope { flex:none; }
-.select-menu-scope .select-menu-trigger { width:auto; height:34px; padding:0 9px 0 12px; gap:5px; border:0; border-radius:var(--pill-radius); background:#efe9ec; box-shadow:none; color:#4f484e; font-size:9.5px; font-weight:700; }
+.select-menu-scope .select-menu-trigger { width:auto; height:34px; padding:0 8px 0 10px; gap:4px; border:0; border-radius:var(--pill-radius); background:#efe9ec; box-shadow:none; color:#4f484e; font-size:9px; font-weight:700; }
 .select-menu-scope .select-menu-trigger:hover { background:#e7dfe3; color:var(--ink); }
-.select-menu-scope .select-menu-trigger > span { max-width:96px; }
-.select-menu-scope .select-menu-trigger > svg { width:12px; height:12px; }
-.select-menu-scope .select-menu-popover { min-width:188px; }
+.select-menu-scope .select-menu-trigger > span { max-width:72px; }
+.select-menu-scope .select-menu-trigger > svg { width:11px; height:11px; }
+.select-menu-scope .select-menu-popover { min-width:140px; }
 .select-menu-trigger { width:100%; height:41px; padding:0 11px 0 12px; display:flex; align-items:center; justify-content:space-between; gap:10px; border:1px solid #ddd6da; border-radius:var(--control-radius); outline:none; background:linear-gradient(180deg,#fff,#fcfafb); color:#403a3f; box-shadow:0 1px 2px rgba(30,20,25,.03); cursor:pointer; font-size:10px; font-weight:580; text-align:left; transition:border-color .18s,box-shadow .18s,background .18s; }
 .select-menu-trigger > span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .select-menu-trigger > svg { flex:none; color:#898187; transition:color .18s,transform .18s; }

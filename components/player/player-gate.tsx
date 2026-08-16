@@ -42,23 +42,20 @@ export function PlayerGate({ embedUrl, title, sourceUrl }: { embedUrl: string; t
     loaded.current = false;
     hasRetried.current = false;
     return () => window.clearTimeout(settleTimer.current);
-  }, [attempt, embedUrl]);
+  }, [embedUrl]);
 
-  // Offers the reload control if load never fired. It never remounts on its own.
   useEffect(() => {
     if (!mounted) return;
-    // One automatic retry after a short delay — the bot-challenge cookie needs one
-    // round trip to land, so a second attempt usually succeeds without user action.
-    const autoRetry = window.setTimeout(() => {
-      if (!loaded.current && !hasRetried.current) {
+    const autoRetry = !hasRetried.current ? window.setTimeout(() => {
+      if (!loaded.current) {
         hasRetried.current = true;
         setAttempt((value) => value + 1);
       }
-    }, AUTO_RETRY_DELAY_MS);
+    }, AUTO_RETRY_DELAY_MS) : undefined;
     const watch = window.setTimeout(() => {
       if (!loaded.current) setStalled(true);
     }, LOAD_TIMEOUT_MS);
-    return () => { window.clearTimeout(autoRetry); window.clearTimeout(watch); };
+    return () => { if (autoRetry) window.clearTimeout(autoRetry); window.clearTimeout(watch); };
   }, [attempt, embedUrl, mounted]);
 
   const handleLoad = () => {
@@ -110,7 +107,7 @@ export function PlayerGate({ embedUrl, title, sourceUrl }: { embedUrl: string; t
       )}
       {stalled && (
         <div className="player-stalled" role="status">
-          <p>Video didn't load — try refreshing the page.</p>
+          <p>Video didn&apos;t load — try refreshing the page.</p>
           <div className="player-stalled-actions">
             <button type="button" onClick={reloadPlayer}><RotateCcw size={14} aria-hidden="true" />Retry</button>
             {sourceUrl && <a href={sourceUrl} target="_blank" rel="noopener noreferrer">Watch on source<Maximize2 size={12} aria-hidden="true" /></a>}

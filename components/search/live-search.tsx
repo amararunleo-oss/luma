@@ -213,8 +213,11 @@ export function LiveSearch() {
         aria-expanded={mobileSearchOpen}
         aria-controls="header-search-form"
         onClick={() => {
-          setMobileSearchOpen((current) => !current);
-          if (!mobileSearchOpen) window.requestAnimationFrame(() => input.current?.focus());
+          setMobileSearchOpen((current) => {
+            if (!current) window.requestAnimationFrame(() => input.current?.focus());
+            else { setOpen(false); setResults(null); }
+            return !current;
+          });
         }}
       ><Search size={18} aria-hidden="true" /></button>
       <form id="header-search-form" className="header-search" action="/search" role="search" onSubmit={() => saveSearch(query)}>

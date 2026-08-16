@@ -25,7 +25,7 @@ export const SEARCH_SCOPES = [
   },
   {
     value: "celebrity",
-    label: "Celebrity videos",
+    label: "Celebrity",
     query: { catalog: "celebrity" },
     kinds: ["movie", "tv_show"],
     groups: ["videos", "actresses", "movies", "tvShows"],
@@ -39,14 +39,14 @@ export const SEARCH_SCOPES = [
   },
   {
     value: "tv-shows",
-    label: "TV shows",
+    label: "TV",
     query: { catalog: "celebrity", type: "TV Show" },
     kinds: ["tv_show"],
     groups: ["videos", "tvShows", "actresses"],
   },
   {
     value: "porn",
-    label: "Porn videos",
+    label: "Porn",
     query: { catalog: "porn" },
     kinds: ["adult"],
     groups: ["videos", "categories"],
