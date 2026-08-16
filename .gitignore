@@ -44,6 +44,7 @@ yarn-error.log*
 
 # operational scripts, docs, db schema, migrations — internal only
 /scripts/
+!/scripts/check-production-env.mjs
 /docs/
 /db/
 /drizzle/
