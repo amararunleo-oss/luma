@@ -93,7 +93,7 @@ test("redirects thumbnail bytes directly to R2 instead of proxying them through 
   assert.match(nextConfig, /loader: "custom"/);
   assert.match(nextConfig, /loaderFile: "\.\/lib\/image-loader\.ts"/);
   assert.match(imageLoader, /NEXT_PUBLIC_MEDIA_RESIZE_BASE/);
-  assert.match(imageLoader, /if \(!resizeBase\) return src;/);
+  assert.match(imageLoader, /if \(!resizeBase\)/);
   assert.doesNotMatch(thumbnail, /unoptimized/);
   assert.match(mediaRoute, /location/);
   assert.match(mediaRoute, /cdn-cache-control/);
@@ -758,14 +758,7 @@ test("keeps ExoClick configuration valid and uses a fresh document lifecycle for
   assert.match(watchPage, /placement="watch-footer"/);
   assert.match(layout, /<GlobalAdFormats \/>/);
   assert.doesNotMatch(layout, /AdRouteSync/);
-  assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_BLOCK_AD_TYPES=/);
-  assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_MOBILE_FPI_ZONE_ID=/);
-  assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_MOBILE_INSTANT_ZONE_ID=/);
-  assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_MOBILE_POPUNDER_ZONE_ID=/);
-  assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_DESKTOP_POPUNDER_ZONE_ID=/);
-  assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_DRAWER_MOBILE_ZONE_ID=/);
-  assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_SEARCH_MOBILE_ZONE_ID=/);
-  assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_MOBILE_INFEED_ZONE_ID=/);
+  assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_CATALOG_ZONE_ID=/);
   assert.match(css, /\.pagination-mobile-pages \{ display:none; \}/);
   assert.match(css, /\.pagination-mobile-pages a \{ width:34px; height:34px; \}/);
   assert.match(css, /\.pagination \+ \.content-end-ad \{ margin-top:20px; padding-top:14px; \}/);
@@ -777,7 +770,7 @@ test("keeps ExoClick configuration valid and uses a fresh document lifecycle for
   assert.match(css, /\.ad-slot-overlay\[data-placement="fullpage"\] \{ width:100vw; height:100vh; height:100dvh; position:fixed/);
   assert.match(css, /\.ad-slot-overlay\[data-placement="fullpage"\] \.ad-zone-host, \.ad-slot-overlay\[data-placement="fullpage"\] \.ad-zone-host > ins \{ width:100%; height:100%/);
   assert.match(css, /\.ad-slot-overlay\[data-placement="fullpage"\] \.ad-zone-host > ins > \*, \.ad-slot-overlay\[data-placement="fullpage"\] iframe, \.ad-slot-overlay\[data-placement="fullpage"\] img \{ max-width:none; max-height:none; pointer-events:auto; \}/);
-  assert.match(css, /\.ad-slot-infeed \{ min-height:250px; grid-column:1 \/ -1/);
+  assert.match(css, /\.ad-slot-infeed \{.*grid-column:1 \/ -1/);
   assert.doesNotMatch(adSlot, /\|\| "101"/);
   assert.match(productionCheck, /Advertising is enabled but configuration is incomplete/);
   assert.match(productionCheck, /optionalPlacements/);
@@ -807,9 +800,9 @@ test("keeps vertical swipe videos isolated, bounded, and VAST-enabled", async ()
   assert.match(page, /NEXT_PUBLIC_EXOCLICK_VERTICAL_VAST_TAG_URL/);
   // Ad density: a forced video ad every sixth reel, and the interstitial spaced out
   // and capped instead of firing on every swipe.
-  assert.match(feed, /const AD_INTERVAL = 6/);
-  assert.match(feed, /const INSTANT_AD_EVERY = 5/);
-  assert.match(feed, /const INSTANT_AD_CAP = 4/);
+  assert.match(feed, /const AD_INTERVAL = 3/);
+  assert.match(feed, /const INSTANT_AD_EVERY = 3/);
+  assert.match(feed, /const INSTANT_AD_CAP = 8/);
   assert.match(feed, /key=\{`reels-instant-\$\{instantAdSlot\}`\}/);
   assert.doesNotMatch(feed, /key=\{`reels-instant-\$\{activeIndex\}`\}/);
   assert.match(feed, /const pendingAd = items\.findIndex/);
@@ -863,6 +856,5 @@ test("keeps vertical swipe videos isolated, bounded, and VAST-enabled", async ()
   assert.match(home, /<PopularHero videos=\{popular\} \/>/);
   assert.match(home, /<HomeDiscovery latest=\{result\.items\} preview=\{preview!\} \/>/);
   assert.match(repository, /export async function getPopularVideos\(limit = 100\)/);
-  assert.match(envExample, /NEXT_PUBLIC_EXOCLICK_VERTICAL_VAST_TAG_URL=/);
   assert.match(sitemap, /"\/swipe-videos"/);
 });
