@@ -39,19 +39,19 @@ export function PlayerGate({ embedUrl, title }: { embedUrl: string; title: strin
       }
     }, AUTO_RETRY_DELAY_MS) : undefined;
     const watch = window.setTimeout(() => {
-      setStalled(true);
-      setLoading(false);
+      if (!loaded.current) {
+        setStalled(true);
+        setLoading(false);
+      }
     }, LOAD_TIMEOUT_MS);
     return () => { if (autoRetry) window.clearTimeout(autoRetry); window.clearTimeout(watch); };
   }, [attempt, embedUrl, mounted]);
 
   const handleLoad = () => {
     loaded.current = true;
+    setStalled(false);
     window.clearTimeout(settleTimer.current);
-    settleTimer.current = window.setTimeout(() => {
-      setStalled(false);
-      setLoading(false);
-    }, SETTLE_MS);
+    settleTimer.current = window.setTimeout(() => setLoading(false), SETTLE_MS);
   };
 
   const reloadPlayer = () => {
